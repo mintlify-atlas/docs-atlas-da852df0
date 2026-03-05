@@ -322,6 +322,69 @@ These commands require moderator or admin permissions.
   ```
 </ParamField>
 
+### back
+
+<ParamField path="back" type="command">
+  Teleports you back to your last location.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  back
+  ```
+  
+  <Note>This command cannot be used from the console - it requires a player.</Note>
+</ParamField>
+
+### fast
+
+<ParamField path="fast" type="command">
+  Enables or disables fast cheat commands like "hatch" (instant egg hatching) or "grow" (instant plant growth).
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  fast <hatch|grow>
+  ```
+  
+  **Parameters:**
+  - `hatch` - Enables instant egg hatching
+  - `grow` - Enables instant plant growth
+  
+  **Example:**
+  ```bash
+  fast hatch
+  fast grow
+  ```
+</ParamField>
+
+### promote
+
+<ParamField path="promote" type="command">
+  Sets specific permission levels for a player.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  promote <player> <PLAYER|MODERATOR|ADMIN>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - The username to change permissions for
+  - `perms` (required) - Permission level: PLAYER, MODERATOR, or ADMIN
+  
+  **Example:**
+  ```bash
+  promote Player1 MODERATOR
+  promote Player2 ADMIN
+  ```
+  
+  <Warning>You cannot promote players to a permission level higher than your own.</Warning>
+</ParamField>
+
 ## Admin Commands
 
 These commands require admin permissions.
@@ -614,6 +677,104 @@ These commands require admin permissions.
   ```
   
   <Note>This command cannot be used from the console.</Note>
+</ParamField>
+
+## Console-Only Commands
+
+These commands can only be executed from the server console, not by players in-game.
+
+### config
+
+<ParamField path="config" type="command">
+  Opens the server configuration file in the system's default text editor.
+  
+  **Permission:** CONSOLE
+  
+  **Usage:**
+  ```bash
+  config
+  ```
+  
+  <Warning>
+  Changes to the config file require a server restart to take effect.
+  </Warning>
+</ParamField>
+
+### directory
+
+<ParamField path="directory" type="command">
+  Opens the current server directory in the system's file explorer.
+  
+  **Aliases:** `dir`
+  
+  **Permission:** CONSOLE
+  
+  **Usage:**
+  ```bash
+  directory
+  dir
+  ```
+</ParamField>
+
+### loadbatch
+
+<ParamField path="loadbatch" type="command">
+  Loads entities at specific coordinates for debugging and testing.
+  
+  **Permission:** ADMIN (Console)
+  
+  **Usage:**
+  ```bash
+  loadbatch <x> <y> <z>
+  ```
+  
+  **Parameters:**
+  - `x` (required) - X coordinate
+  - `y` (required) - Y coordinate
+  - `z` (required) - Z coordinate
+  
+  **Example:**
+  ```bash
+  loadbatch 100 -50 200
+  ```
+</ParamField>
+
+### query
+
+<ParamField path="query" type="command">
+  Query the entity associated with a given NitroxId for debugging.
+  
+  **Permission:** CONSOLE
+  
+  **Usage:**
+  ```bash
+  query <nitrox-id>
+  ```
+  
+  **Parameters:**
+  - `nitrox-id` (required) - The NitroxId of the entity to query
+  
+  **Example:**
+  ```bash
+  query abc123-def456-ghi789
+  ```
+</ParamField>
+
+### swapserializer
+
+<ParamField path="swapserializer" type="command">
+  Swaps the server's serialization mode between JSON and ProtoBuf.
+  
+  **Permission:** CONSOLE (Admin)
+  
+  **Usage:**
+  ```bash
+  swapserializer
+  ```
+  
+  <Warning>
+  This command saves the world, stops the server, changes the serializer mode, and requires manual restart. Use with caution in production environments.
+  </Warning>
 </ParamField>
 
 ## See Also

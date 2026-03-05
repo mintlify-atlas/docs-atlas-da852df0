@@ -1,0 +1,94 @@
+{
+  "projectType": "general",
+  "projectName": "Nitrox Unlocked",
+  "projectDescription": "An open-source multiplayer modification for Subnautica that works with non-Steam versions of the game.",
+  "theme": "aspen",
+  "primaryColor": "#1c7d9c",
+  "lightColor": "#243827",
+  "darkColor": "#cbd5c8",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/multiplayer",
+              "features/synchronization",
+              "features/world-management",
+              "features/communication"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/hosting-server",
+              "guides/configuration",
+              "guides/troubleshooting",
+              "guides/joining-game"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/architecture",
+              "development/patching-system",
+              "development/networking",
+              "development/contributing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "reference/server-commands",
+              "reference/client-commands"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "reference/server-config",
+              "reference/launcher-config"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multiplayer support for Subnautica with real-time synchronization",
+    "Dedicated server hosting with console commands",
+    "Desktop launcher with graphical interface",
+    "Entity and world state synchronization across clients",
+    "In-game chat and communication system",
+    "Save file management and world persistence",
+    "Harmony-based game patching system with 150+ patches",
+    "Works with non-Steam/cracked versions of Subnautica"
+  ],
+  "publicApiSurface": [
+    "Nitrox.Launcher - Desktop application entry point",
+    "Nitrox.Server.Subnautica - Dedicated server executable",
+    "NitroxPatcher - Game patching module",
+    "NitroxClient - Multiplayer client logic",
+    "Nitrox.Model - Shared data structures and packets",
+    "Server console commands (help, save, stop, kick, etc.)",
+    "Launcher CLI arguments (--nitrox, --embedded)",
+    "UDP networking protocol on configurable port",
+    "World save/load system",
+    "Player management and permissions system"
+  ]
+}

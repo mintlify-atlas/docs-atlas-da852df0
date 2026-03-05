@@ -1,0 +1,630 @@
+---
+title: Communication
+description: In-game chat, commands, and player communication in Nitrox
+---
+
+Nitrox provides a comprehensive communication system including in-game text chat, server commands, and player coordination features.
+
+## In-Game Chat System
+
+The chat system allows players to communicate in real-time while playing.
+
+### Chat Interface
+
+Nitrox includes a custom chat UI overlay:
+
+- **Chat log**: Displays recent messages from all players
+- **Input field**: Type messages to send to other players
+- **Auto-hide**: Chat fades when inactive, shows on new messages
+- **Scrollback**: View message history
+
+```csharp
+// From PlayerChatManager.cs:13
+public class PlayerChatManager
+{
+    private const char SERVER_COMMAND_PREFIX = '/';
+    public static readonly PlayerChatManager Instance = new();
+    
+    public delegate void PlayerChatDelegate(string message);
+    public delegate void PlayerCommandDelegate(string message);
+    
+    public PlayerChatDelegate OnPlayerChat;
+    public PlayerCommandDelegate OnPlayerCommand;
+}
+```
+
+### Opening Chat
+
+The chat is toggled with a keybind (default: **Enter** or **T**):
+
+<Steps>
+  <Step title="Press Chat Key">
+    Chat overlay appears and input field is focused
+  </Step>
+  <Step title="Type Message">
+    Enter your message text
+  </Step>
+  <Step title="Send Message">
+    Press Enter to send, Esc to cancel
+  </Step>
+</Steps>
+
+<Note>
+A hint appears the first time you use chat, then is automatically hidden. This is tracked in Nitrox preferences.
+</Note>
+
+### Sending Messages
+
+```csharp
+// From PlayerChatManager.cs:122
+public void SendMessage()
+{
+    if (string.IsNullOrWhiteSpace(playerChat.InputText))
+    {
+        return;
+    }
+    
+    string trimmedInput = playerChat.InputText.Trim();
+    if (trimmedInput[0] == SERVER_COMMAND_PREFIX)
+    {
+        // Server command (starts with /)
+        OnPlayerCommand?.Invoke(trimmedInput.Substring(1));
+    }
+    else
+    {
+        // Regular chat message
+        OnPlayerChat?.Invoke(trimmedInput);
+    }
+}
+```
+
+### Chat Packets
+
+Messages are transmitted via the `ChatMessage` packet:
+
+```csharp
+// From ChatMessage.cs:7
+public class ChatMessage : Packet
+{
+    public ushort PlayerId { get; }
+    public string Text { get; }
+    public const ushort SERVER_ID = ushort.MaxValue;
+    
+    public ChatMessage(ushort playerId, string text)
+    {
+        PlayerId = playerId;
+        Text = text;
+    }
+}
+```
+
+<Accordion title="Special Player IDs">
+  - **Player IDs**: `0` to `65534` - Regular players
+  - **Server ID**: `65535` (`ushort.MaxValue`) - Messages from server
+</Accordion>
+
+### Receiving Messages
+
+```csharp
+// From PlayerChatManager.cs:111
+public void AddMessage(string playerName, string message, Color color)
+{
+    yield return playerChat.WriteLogEntry(playerName, message, color);
+}
+```
+
+Messages display with:
+- **Player name** in colored text
+- **Message content**
+- **Color coding** for different message types
+
+## Command System
+
+Commands start with `/` and are processed by the server.
+
+### Command Syntax
+
+```bash
+/commandname [required_arg] [optional_arg]
+```
+
+### Permission Levels
+
+Commands require specific permission levels:
+
+<CardGroup cols={4}>
+  <Card title="PLAYER" icon="user">
+    Basic commands available to all players
+  </Card>
+  <Card title="MODERATOR" icon="shield">
+    Moderation and server management
+  </Card>
+  <Card title="ADMIN" icon="crown">
+    Full administrative access
+  </Card>
+  <Card title="CONSOLE" icon="terminal">
+    Server console only
+  </Card>
+</CardGroup>
+
+```csharp
+// From Command.cs - all commands extend this base
+public abstract class Command
+{
+    public string Name { get; }
+    public Perms RequiredPermission { get; }
+    public string Description { get; }
+    public IEnumerable<string> Aliases { get; }
+    
+    protected abstract void Execute(CallArgs args);
+}
+```
+
+## Available Commands
+
+### Player Commands
+
+These commands are available to all players:
+
+<AccordionGroup>
+  <Accordion title="/help [command]">
+    Display list of available commands or detailed help for a specific command
+    
+    **Aliases:** `/?`
+    
+    **Examples:**
+    ```bash
+    /help              # List all commands
+    /help broadcast    # Show help for broadcast command
+    ```
+    
+    ```csharp
+    // From HelpCommand.cs:14
+    public HelpCommand() : base("help", Perms.PLAYER, "Displays this")
+    {
+        AddParameter(new TypeString("command", false, 
+            "Command to see help information for"));
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="/login <password>">
+    Authenticate with admin password to gain admin permissions
+    
+    **Examples:**
+    ```bash
+    /login myAdminPassword123
+    ```
+    
+    <Note>
+    Admin password is set in `server.cfg`. Default is a randomly generated 12-character string.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="/back">
+    Return to your last known position before teleportation or death
+    
+    **Examples:**
+    ```bash
+    /back
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Moderator Commands
+
+Require `MODERATOR` or higher permissions:
+
+<AccordionGroup>
+  <Accordion title="/broadcast <message>">
+    Send a server-wide announcement to all players
+    
+    **Aliases:** `/say`
+    
+    **Examples:**
+    ```bash
+    /broadcast Server restart in 5 minutes!
+    /say Welcome to our Nitrox server!
+    ```
+    
+    ```csharp
+    // From BroadcastCommand.cs:12
+    public BroadcastCommand() : base("broadcast", Perms.MODERATOR, 
+        "Broadcasts a message on the server")
+    {
+        AddParameter(new TypeString("message", true, 
+            "The message to be broadcast"));
+        AllowedArgOverflow = true;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="/kick <player> [reason]">
+    Disconnect a player from the server
+    
+    **Examples:**
+    ```bash
+    /kick PlayerName
+    /kick PlayerName Griefing bases
+    ```
+  </Accordion>
+  
+  <Accordion title="/mute <player>">
+    Prevent a player from sending chat messages
+    
+    **Examples:**
+    ```bash
+    /mute SpammerName
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Admin Commands
+
+Require `ADMIN` permissions:
+
+<AccordionGroup>
+  <Accordion title="/op <player>">
+    Grant admin permissions to a player
+    
+    **Examples:**
+    ```bash
+    /op TrustedPlayer
+    ```
+  </Accordion>
+  
+  <Accordion title="/deop <player>">
+    Remove admin permissions from a player
+    
+    **Examples:**
+    ```bash
+    /deop FormerAdmin
+    ```
+  </Accordion>
+  
+  <Accordion title="/promote <player>">
+    Grant moderator permissions to a player
+    
+    **Examples:**
+    ```bash
+    /promote NewModerator
+    ```
+  </Accordion>
+  
+  <Accordion title="/gamemode <mode> [player]">
+    Change game mode for yourself or another player
+    
+    **Modes:** `survival`, `freedom`, `hardcore`, `creative`
+    
+    **Examples:**
+    ```bash
+    /gamemode creative
+    /gamemode survival PlayerName
+    ```
+  </Accordion>
+  
+  <Accordion title="/changeservergamemode <mode>">
+    Change the server's default game mode
+    
+    **Examples:**
+    ```bash
+    /changeservergamemode creative
+    ```
+  </Accordion>
+  
+  <Accordion title="/save">
+    Manually trigger a world save
+    
+    **Examples:**
+    ```bash
+    /save
+    ```
+  </Accordion>
+  
+  <Accordion title="/backup">
+    Create a backup of the current world state
+    
+    **Examples:**
+    ```bash
+    /backup
+    ```
+  </Accordion>
+  
+  <Accordion title="/autosave [on|off]">
+    Enable or disable automatic world saving
+    
+    **Examples:**
+    ```bash
+    /autosave off
+    /autosave on
+    ```
+  </Accordion>
+  
+  <Accordion title="/aurora <mode>">
+    Control Aurora explosion timing
+    
+    **Modes:** `restore`, `explode`, `countdown <time>`
+    
+    **Examples:**
+    ```bash
+    /aurora explode
+    /aurora countdown 300
+    /aurora restore
+    ```
+  </Accordion>
+  
+  <Accordion title="/sunbeam <mode>">
+    Control Sunbeam arrival event
+    
+    **Modes:** `arrive`, `destroy`
+    
+    **Examples:**
+    ```bash
+    /sunbeam arrive
+    /sunbeam destroy
+    ```
+  </Accordion>
+  
+  <Accordion title="/pvp [on|off]">
+    Toggle player vs player damage
+    
+    **Examples:**
+    ```bash
+    /pvp off
+    /pvp on
+    ```
+  </Accordion>
+  
+  <Accordion title="/setkeepinventory [player] [true|false]">
+    Toggle whether a player keeps inventory on death
+    
+    **Examples:**
+    ```bash
+    /setkeepinventory true
+    /setkeepinventory PlayerName false
+    ```
+  </Accordion>
+  
+  <Accordion title="/changeadminpassword <newpassword>">
+    Change the server admin password
+    
+    **Examples:**
+    ```bash
+    /changeadminpassword MyNewSecurePassword123
+    ```
+  </Accordion>
+  
+  <Accordion title="/changeserverpassword <newpassword>">
+    Change the server join password
+    
+    **Examples:**
+    ```bash
+    /changeserverpassword NewServerPass
+    /changeserverpassword "" # Remove password
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Server Console Commands
+
+These commands only work from the server console:
+
+<AccordionGroup>
+  <Accordion title="stop">
+    Gracefully shut down the server (saves world first)
+    
+    **Examples:**
+    ```bash
+    stop
+    ```
+  </Accordion>
+  
+  <Accordion title="list">
+    Display all connected players
+    
+    **Examples:**
+    ```bash
+    list
+    ```
+  </Accordion>
+  
+  <Accordion title="summary">
+    Display server statistics and information
+    
+    **Examples:**
+    ```bash
+    summary
+    ```
+  </Accordion>
+  
+  <Accordion title="config [setting] [value]">
+    View or modify server configuration
+    
+    **Examples:**
+    ```bash
+    config                    # View all settings
+    config MaxConnections     # View specific setting
+    config MaxConnections 20  # Change setting
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Player Coordination Features
+
+### Player List Tab
+
+Nitrox adds a player list to the PDA showing:
+
+- All connected players
+- Player names and colors
+- Distance from local player
+- Quick ping/waypoint features
+
+### Player Pings
+
+Players can ping locations visible to all players:
+
+- Waypoint markers
+- Distance indicators
+- Collaborative exploration
+
+## Muting Players
+
+Moderators can mute disruptive players:
+
+```csharp
+// MutePlayer packet prevents chat messages from being broadcast
+public class MutePlayer : Packet
+{
+    public ushort PlayerId { get; }
+    public bool IsMuted { get; }
+}
+```
+
+Muted players:
+- Cannot send chat messages
+- See a notification they are muted
+- Can still use commands (if they have permissions)
+
+## Message Colors
+
+Chat messages use color coding:
+
+<Accordion title="Message Color Scheme">
+  - **Player messages**: Player's chosen color
+  - **Server broadcasts**: Yellow/gold
+  - **System messages**: White/gray
+  - **Error messages**: Red
+  - **Success messages**: Green
+</Accordion>
+
+## Chat Preferences
+
+Chat behavior can be configured in Nitrox client settings:
+
+```csharp
+// From PlayerChatManager.cs:86
+if (!NitroxPrefs.ChatUsed.Value)
+{
+    DisableChatKeyHint();
+}
+```
+
+- First-time chat hint display
+- Chat notification settings
+- Message history length
+
+## Technical Implementation
+
+### Command Processing
+
+<Steps>
+  <Step title="Client Input">
+    Player types `/command args` in chat
+  </Step>
+  <Step title="Command Detection">
+    Client detects `/` prefix and extracts command
+  </Step>
+  <Step title="Send to Server">
+    Command sent via packet to server
+  </Step>
+  <Step title="Server Validation">
+    Server checks player permissions and command existence
+  </Step>
+  <Step title="Execute">
+    Command handler executes with parsed arguments
+  </Step>
+  <Step title="Response">
+    Result sent back to player or broadcast to all
+  </Step>
+</Steps>
+
+### Command Arguments
+
+Commands support typed parameters:
+
+```csharp
+// Available parameter types:
+- TypeString    // Text arguments
+- TypeInt       // Integer numbers
+- TypeFloat     // Decimal numbers
+- TypeBoolean   // true/false
+- TypePlayer    // Player name lookup
+- TypeNitroxId  // Entity ID
+- TypeEnum      // Enumeration values
+```
+
+### Custom Commands
+
+Developers can add custom commands by extending the `Command` base class:
+
+```csharp
+public class MyCustomCommand : Command
+{
+    public MyCustomCommand() : base("mycommand", Perms.PLAYER, "Does something cool")
+    {
+        AddParameter(new TypeString("arg", true, "Required argument"));
+    }
+    
+    protected override void Execute(CallArgs args)
+    {
+        string arg = args.Get<string>(0);
+        SendMessageToPlayer(args.Sender, $"You said: {arg}");
+    }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clear Communication" icon="message">
+    Use descriptive messages when coordinating base building or exploration
+  </Card>
+  
+  <Card title="Command Permissions" icon="shield-check">
+    Only grant admin/moderator permissions to trusted players
+  </Card>
+  
+  <Card title="Server Announcements" icon="bullhorn">
+    Use `/broadcast` for important server notifications
+  </Card>
+  
+  <Card title="Regular Backups" icon="clock-rotate-left">
+    Use `/backup` before major world changes or admin commands
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Chat Not Appearing
+
+- Check if chat key is bound in settings
+- Verify Nitrox client is properly installed
+- Check for UI mods that may conflict
+
+### Commands Not Working
+
+- Ensure command starts with `/`
+- Check you have required permissions (`/help` to see available commands)
+- Verify correct syntax with `/help <command>`
+- Check server logs for error messages
+
+### Muted by Mistake
+
+- Contact server admin/moderator
+- Admin can check mute status and unmute
+- Restart may not clear mute (persists in player data)
+
+## Related Pages
+
+<CardGroup cols={3}>
+  <Card title="Multiplayer" icon="users" href="/features/multiplayer">
+    Player permissions and session management
+  </Card>
+  <Card title="World Management" icon="database" href="/features/world-management">
+    Server configuration and admin commands
+  </Card>
+  <Card title="Synchronization" icon="rotate" href="/features/synchronization">
+    How chat messages are synchronized
+  </Card>
+</CardGroup>

@@ -1,0 +1,372 @@
+---
+title: Synchronization
+description: Real-time entity and world state synchronization in Nitrox
+---
+
+Nitrox synchronizes the entire Subnautica world state across all connected players in real-time, ensuring everyone experiences the same game world.
+
+## Synchronization Architecture
+
+Nitrox uses a **server-authoritative model** where the server maintains the canonical game state and broadcasts updates to all clients.
+
+<Card title="Packet-Based Communication" icon="network-wired">
+  All synchronization happens through typed packet classes that inherit from `Packet`. Over **130 different packet types** handle various synchronization scenarios.
+</Card>
+
+### Network Delivery Methods
+
+Packets use different delivery guarantees based on their importance:
+
+<Accordion title="Delivery Methods">
+  - **UNRELIABLE_SEQUENCED**: Fast, no guarantee (movement, animations)
+  - **RELIABLE_ORDERED**: Guaranteed delivery in order (stats, inventory)
+  - **RELIABLE_ORDERED_LAST**: Only latest packet matters (metadata updates)
+  - **RELIABLE_UNORDERED**: Guaranteed but order doesn't matter (entity spawns)
+</Accordion>
+
+## What Gets Synchronized
+
+### Players
+
+Everything about each player is synchronized in real-time:
+
+**Movement & Position**
+```csharp
+// From PlayerMovement.cs:16
+public class PlayerMovement : Movement
+{
+    public ushort PlayerId { get; }
+    public NitroxVector3 Position { get; }
+    public NitroxVector3 Velocity { get; }
+    public NitroxQuaternion BodyRotation { get; }
+    public NitroxQuaternion AimingRotation { get; }
+    
+    // Uses UNRELIABLE_SEQUENCED for low latency
+}
+```
+
+**Vital Statistics**
+```csharp
+// From PlayerStats.cs:8
+public class PlayerStats : Packet
+{
+    public float Oxygen { get; }
+    public float MaxOxygen { get; }
+    public float Health { get; }
+    public float Food { get; }
+    public float Water { get; }
+    public float InfectionAmount { get; }
+    
+    // Uses RELIABLE_ORDERED_LAST
+}
+```
+
+**Other Player State**
+- Equipment and held items (`PlayerHeldItemChanged`)
+- Quick slot bindings (`PlayerQuickSlotsBindingChanged`)
+- Death events (`PlayerDeathEvent`)
+- Vehicle/base entry and exit (`SubRootChanged`, `EscapePodChanged`)
+- Animations (`AnimationChangeEvent`)
+- Bench/chair usage (`BenchChanged`)
+
+### Entities
+
+All world entities are synchronized including their transforms and metadata.
+
+**Transform Updates**
+```csharp
+// From EntityTransformUpdates.cs:25
+public abstract class EntityTransformUpdate
+{
+    public NitroxId Id { get; }
+    public NitroxVector3 Position { get; }
+    public NitroxQuaternion Rotation { get; }
+}
+```
+
+Two update types exist:
+- **RawTransformUpdate**: Direct position/rotation
+- **SplineTransformUpdate**: Interpolated movement with velocity
+
+**Entity Lifecycle**
+<Steps>
+  <Step title="Spawning">
+    `EntitySpawnedByClient` - Client requests entity spawn (e.g., dropped item, constructed object)
+  </Step>
+  <Step title="Metadata">
+    `EntityMetadataUpdate` - Properties like battery charge, storage contents, damage state
+  </Step>
+  <Step title="Reparenting">
+    `EntityReparented` - Entity changes parent (e.g., item picked up, moved to storage)
+  </Step>
+  <Step title="Destruction">
+    `EntityDestroyed` - Entity removed from world
+  </Step>
+</Steps>
+
+### Vehicles
+
+Vehicles have specialized synchronization for complex interactions:
+
+<CardGroup cols={3}>
+  <Card title="Seamoth" icon="ship">
+    - Position and rotation
+    - Module states
+    - Docking/undocking
+    - Health and power
+  </Card>
+  
+  <Card title="Exosuit (PRAWN)" icon="robot">
+    - Arm actions (drilling, grappling)
+    - Jump jet usage
+    - Storage and modules
+    - Docking states
+  </Card>
+  
+  <Card title="Cyclops" icon="submarine">
+    - Damage points and fires
+    - Fire suppression
+    - Decoy launches
+    - Lighting modes
+    - Horn and sonar
+  </Card>
+</CardGroup>
+
+**Vehicle Movement**
+```csharp
+// VehicleMovements.cs contains movement data
+// Vehicles can be piloted by one player at a time
+// Simulation ownership tracks who controls each vehicle
+```
+
+**Cyclops-Specific Packets**
+- `CyclopsDamage` - Hull integrity and damage
+- `CyclopsFireCreated` - Fire outbreak locations  
+- `CyclopsFireSuppression` - Extinguishing fires
+- `CyclopsDamagePointRepaired` - Welding damage points
+- `CyclopsDecoyLaunch` - Decoy tube activation
+- `PlayerInCyclopsMovement` - Player walking inside Cyclops
+
+### Base Building
+
+Base construction is synchronized with safety checks to prevent desynchronization:
+
+**Build Packets**
+- `PlaceBase` - New base piece constructed
+- `UpdateBase` - Base piece modified (e.g., hatch opened)
+- `BaseDeconstructed` - Base piece removed
+- `DeconstructionBegin` - Deconstruction started
+
+**Desync Protection**
+```csharp
+// From SubnauticaServerConfig.cs:124
+public bool SafeBuilding { get; set; } = true;
+
+// When enabled, rejects build actions detected as desynced
+// Prevents ghost building and base corruption
+```
+
+<Warning>
+If bases become desynced between players, use the `/buildresync` command to request a full base state refresh.
+</Warning>
+
+**Building Synchronization Flow**
+<Steps>
+  <Step title="Client Build">
+    Player constructs base piece locally
+  </Step>
+  <Step title="Server Validation">
+    Server checks if build is valid and not desynced
+  </Step>
+  <Step title="Broadcast">
+    Server sends build packet to all other clients
+  </Step>
+  <Step title="Client Apply">
+    Other clients construct the same base piece
+  </Step>
+</Steps>
+
+### Inventory & Storage
+
+Items in containers, player inventories, and vehicle storage are synchronized:
+
+- Item pickup and drop events
+- Container contents
+- Crafting and construction
+- Battery/power cell charge states
+- Food/water decay
+
+### Creatures & AI
+
+Creature state is partially synchronized:
+
+**Synchronized:**
+- Spawn locations and types
+- Creature metadata (health, home position)
+- Attack targets and aggression states
+- Death and respawn
+
+**Not Synchronized:**
+- Exact real-time positions (too bandwidth-intensive)
+- Individual swim paths
+- Animations (predicted locally)
+
+<Note>
+Creatures may appear in slightly different positions for each player, but important state like being killed is synchronized.
+</Note>
+
+### World Events
+
+**Story Progression**
+- Aurora explosion timing
+- Sunbeam arrival and outcome  
+- Radio messages and triggers
+- Precursor facilities (doors, terminals, teleporters)
+
+**Environmental**
+- Time of day and elapsed time
+- Aurora radiation state
+- Spawned entities and resources
+- World cell loading/unloading
+
+## Packet System
+
+All synchronization uses the packet system defined in `Nitrox.Model.Subnautica.Packets`.
+
+### Example Packet Types
+
+<AccordionGroup>
+  <Accordion title="Player Packets (23 types)">
+    - `PlayerMovement`
+    - `PlayerStats` 
+    - `PlayerHeldItemChanged`
+    - `PlayerQuickSlotsBindingChanged`
+    - `PlayerDeathEvent`
+    - `PlayerJoinedMultiplayerSession`
+    - `PlayerKicked`
+    - `PlayerTeleported`
+    - And 15 more...
+  </Accordion>
+  
+  <Accordion title="Vehicle Packets (12 types)">
+    - `VehicleMovements`
+    - `VehicleDocking`
+    - `VehicleUndocking`
+    - `VehicleOnPilotModeChanged`
+    - `CyclopsDamage`
+    - `CyclopsFireCreated`
+    - `ExosuitArmActionPacket`
+    - `SeamothModulesAction`
+    - And 4 more...
+  </Accordion>
+  
+  <Accordion title="Entity Packets (8 types)">
+    - `EntitySpawnedByClient`
+    - `EntityTransformUpdates`
+    - `EntityMetadataUpdate`
+    - `EntityReparented`
+    - `EntityDestroyed`
+    - And 3 more...
+  </Accordion>
+  
+  <Accordion title="Base Building Packets (7 types)">
+    - `PlaceBase`
+    - `UpdateBase`
+    - `BaseDeconstructed`
+    - `DeconstructionBegin`
+    - `BuildingResync`
+    - `BuildingResyncRequest`
+    - `BuildingDesyncWarning`
+  </Accordion>
+</AccordionGroup>
+
+### Packet Processors
+
+Each packet type has a corresponding processor on both client and server:
+
+```csharp
+// Client processes incoming packets
+NitroxClient/Communication/Packets/Processors/
+
+// Server processes incoming packets  
+Nitrox.Server.Subnautica/Models/Packets/Processors/
+```
+
+## Simulation Ownership
+
+Nitrox uses a **simulation ownership** system to determine which player's client simulates certain entities:
+
+- Prevents conflicts when multiple players interact with the same entity
+- Owner's client sends authoritative updates
+- Ownership can transfer (e.g., when another player grabs an item)
+- Server tracks ownership in `SimulationOwnershipData`
+
+```csharp
+// From LocalPlayer.cs:138
+public void BroadcastQuickSlotsBindingChanged(Optional<NitroxId>[] slotItemIds) => 
+    throttledPacketSender.SendThrottled(
+        new PlayerQuickSlotsBindingChanged(slotItemIds), 
+        (packet) => 1
+    );
+```
+
+<Note>
+Some packets are throttled to prevent bandwidth overload. The `ThrottledPacketSender` batches updates.
+</Note>
+
+## Cell-Based Streaming
+
+The world is divided into cells that load/unload based on player proximity:
+
+- `CellVisibilityChanged` - Player enters/exits a cell's range
+- Entities only synchronized when in visible cells
+- Reduces bandwidth for large worlds
+- Server tracks which cells each player can see
+
+## Initial Sync
+
+When a player joins, they receive the complete world state:
+
+<Steps>
+  <Step title="Initial Player Sync">
+    `InitialPlayerSync` - Player's own data and settings
+  </Step>
+  <Step title="Remote Players">
+    Data for all other connected players
+  </Step>
+  <Step title="World Entities">
+    All entities in loaded cells
+  </Step>
+  <Step title="Global Root">
+    Persistent world entities (bases, vehicles, etc.)
+  </Step>
+  <Step title="Story State">
+    Current story progression and events
+  </Step>
+</Steps>
+
+The initial sync can take 30-120 seconds depending on world complexity.
+
+## Performance Optimization
+
+Nitrox optimizes synchronization through:
+
+- **Unreliable packets** for non-critical data (movement, animations)
+- **Delta compression** for repeated data
+- **Cell-based streaming** to limit entity count
+- **Throttling** for high-frequency updates
+- **Entity caching** to speed up world loading
+
+## Related Pages
+
+<CardGroup cols={3}>
+  <Card title="Multiplayer" icon="users" href="/features/multiplayer">
+    Player sessions and connection management
+  </Card>
+  <Card title="World Management" icon="database" href="/features/world-management">
+    How synchronized state is persisted
+  </Card>
+  <Card title="Communication" icon="message" href="/features/communication">
+    Chat and commands for coordination
+  </Card>
+</CardGroup>

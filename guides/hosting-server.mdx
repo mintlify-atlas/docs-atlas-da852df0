@@ -1,0 +1,352 @@
+---
+title: Hosting a Server
+description: Learn how to host a dedicated Nitrox Unlocked server for Subnautica multiplayer
+---
+
+## Overview
+
+Nitrox Unlocked allows you to host dedicated servers for Subnautica multiplayer. You can run servers using the launcher interface or via command line for headless operation.
+
+## System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Minimum Requirements" icon="server">
+    - Subnautica installation
+    - .NET 8.0 Runtime or higher
+    - Available UDP port (default: 11000)
+    - 2GB RAM minimum
+  </Card>
+  <Card title="Recommended" icon="gauge-high">
+    - 4GB RAM for better performance
+    - SSD for faster world loading
+    - Stable internet connection
+    - Port forwarding capability
+  </Card>
+</CardGroup>
+
+## Starting the Server
+
+### Using the Launcher (Recommended)
+
+<Steps>
+  <Step title="Open Nitrox Launcher">
+    Launch the Nitrox Launcher application.
+  </Step>
+  
+  <Step title="Navigate to Server Management">
+    Click on the "Servers" or "Manage Server" tab.
+  </Step>
+  
+  <Step title="Create or Select a Server">
+    Either create a new world save or select an existing one.
+  </Step>
+  
+  <Step title="Start the Server">
+    Click the "Start Server" button. The server will:
+    - Initialize dependencies
+    - Load game files from your Subnautica installation
+    - Bind to the configured port (default 11000 UDP)
+    - Load the world save
+  </Step>
+</Steps>
+
+<Note>
+  When using the launcher with `IsEmbedded` mode enabled (default), the server runs within the launcher UI rather than opening a separate window.
+</Note>
+
+### Command Line Server
+
+For advanced users and headless server hosting:
+
+```bash
+# Navigate to server directory
+cd Nitrox.Server.Subnautica
+
+# Start server with default world
+./Nitrox.Server.Subnautica
+
+# Start server with specific save name
+./Nitrox.Server.Subnautica --save "My Custom World"
+
+# Alternative syntax
+./Nitrox.Server.Subnautica --name "My Custom World"
+```
+
+<Warning>
+  The server executable name may vary by platform. On Windows, use `.exe` extension.
+</Warning>
+
+#### Command Line Arguments
+
+| Argument | Description | Example |
+|----------|-------------|----------|
+| `--save <name>` | Specify save world name | `--save "Ocean Base"` |
+| `--name <name>` | Alternative to `--save` | `--name "Ocean Base"` |
+| `--embedded` | Run in embedded mode (for launcher) | `--embedded` |
+
+### Server Startup Process
+
+When the server starts, it:
+
+<Steps>
+  <Step title="Finds Subnautica Installation">
+    Locates your Subnautica game files (required for game data).
+    
+    Source reference: `Program.cs:82-86`
+    ```csharp
+    if (!GameInstallationFinder.FindGameCached(GameInfo.Subnautica))
+    {
+        throw new DirectoryNotFoundException("Could not find Subnautica installation.");
+    }
+    ```
+  </Step>
+  
+  <Step title="Checks Port Availability">
+    Waits up to 30 seconds for the configured port to become available.
+    
+    Source reference: `Program.cs:99-104`
+  </Step>
+  
+  <Step title="Initializes World">
+    Loads or creates the world save from `%AppData%/Nitrox/saves/` directory.
+  </Step>
+  
+  <Step title="Starts Listening">
+    Binds to the UDP port and begins accepting connections.
+    
+    Default port: **11000 UDP**
+  </Step>
+</Steps>
+
+## Networking Setup
+
+### Port Forwarding
+
+For players outside your local network to connect, you need to forward the server port:
+
+<Steps>
+  <Step title="Identify Your Server Port">
+    Check your `server.cfg` file for the `ServerPort` setting (default: 11000).
+  </Step>
+  
+  <Step title="Configure Router">
+    Forward **UDP port 11000** (or your custom port) to your server's local IP address.
+    
+    <Accordion title="How to find your local IP">
+      **Windows:**
+      ```bash
+      ipconfig
+      ```
+      Look for "IPv4 Address" under your active network adapter.
+      
+      **Linux/macOS:**
+      ```bash
+      ip addr show
+      # or
+      ifconfig
+      ```
+    </Accordion>
+  </Step>
+  
+  <Step title="Enable UPnP (Optional)">
+    If your router supports UPnP and you have `AutoPortForward` enabled in your config, Nitrox will attempt automatic port forwarding.
+    
+    ```cfg
+    AutoPortForward=true
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  UPnP automatic port forwarding is enabled by default. Check your server logs to see if it was successful.
+</Note>
+
+### Firewall Configuration
+
+Ensure your firewall allows incoming UDP traffic on the server port:
+
+<CodeGroup>
+```bash Windows Firewall
+netsh advfirewall firewall add rule name="Nitrox Server" dir=in action=allow protocol=UDP localport=11000
+```
+
+```bash Linux (ufw)
+sudo ufw allow 11000/udp
+```
+
+```bash Linux (firewalld)
+sudo firewall-cmd --add-port=11000/udp --permanent
+sudo firewall-cmd --reload
+```
+</CodeGroup>
+
+### Finding Your Server IP
+
+Players need your IP address to connect:
+
+**Local Network (LAN):**
+- Use your local IP address (e.g., `192.168.1.100`)
+- Players on the same network can connect directly
+- LAN discovery is enabled by default (`LANDiscoveryEnabled=true`)
+
+**Internet (WAN):**
+- Use your public IP address
+- Find it at: https://whatismyipaddress.com
+- Requires port forwarding to be configured
+
+<Warning>
+  Your public IP may change over time if you don't have a static IP from your ISP. Consider using a dynamic DNS service for consistent addressing.
+</Warning>
+
+## Server Management
+
+### Console Commands
+
+Once running, you can use console commands to manage the server:
+
+```bash
+# Display available commands
+help
+
+# Save the world
+save
+
+# Create a backup
+backup
+
+# List connected players
+list
+
+# Change admin password
+changeadminpassword <new_password>
+
+# Stop the server
+stop
+```
+
+<Tip>
+  Type `help` in the server console to see all available commands.
+</Tip>
+
+### Graceful Shutdown
+
+To properly stop the server:
+
+<Steps>
+  <Step title="Save Progress">
+    Type `save` to ensure all recent changes are written to disk.
+  </Step>
+  
+  <Step title="Stop Server">
+    - **Console:** Press `Ctrl+C` or `Ctrl+D`
+    - **Launcher:** Click the "Stop Server" button
+    - The server will automatically save before shutting down
+  </Step>
+</Steps>
+
+## Save File Location
+
+Server saves are stored in:
+
+<CodeGroup>
+```bash Windows
+%AppData%\Nitrox\saves\<World Name>\
+```
+
+```bash Linux/macOS
+~/.config/Nitrox/saves/<World Name>/
+```
+</CodeGroup>
+
+Each save folder contains:
+- `server.cfg` - Server configuration
+- `WorldData.nitrox` or `WorldData.json` - World state
+- `PlayerData.nitrox` or `PlayerData.json` - Player information
+- `Version.nitrox` or `Version.json` - Save version info
+
+## Performance Optimization
+
+### Entity Cache Pre-loading
+
+For better player experience when entering new areas:
+
+```cfg
+CreateFullEntityCache=true
+```
+
+<Warning>
+  This makes the **initial** server start take several minutes (loads all 504,732 entities), but improves performance when players explore new areas. Only enable this if you have time for a long initial load.
+</Warning>
+
+Source reference: `Server.cs:203-217`
+
+```csharp
+if (serverConfig.CreateFullEntityCache)
+{
+    Log.Info("Starting to load all batches up front.");
+    Log.Info("This can take up to several minutes...");
+    worldEntityManager.LoadAllUnspawnedEntities(serverCancelToken);
+}
+```
+
+### Auto-Save Configuration
+
+Adjust save frequency to balance safety vs. performance:
+
+```cfg
+# Save every 2 minutes (default is 120000ms)
+SaveInterval=120000
+
+# Disable autosave (not recommended)
+DisableAutoSave=false
+```
+
+## Troubleshooting Startup Issues
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    **Error:** `Port 11000 UDP is already in use`
+    
+    **Solution:**
+    - Close any other Nitrox server instances
+    - Change the `ServerPort` in your config
+    - Check for other applications using the port:
+      ```bash
+      # Windows
+      netstat -ano | findstr :11000
+      
+      # Linux/macOS
+      lsof -i :11000
+      ```
+  </Accordion>
+  
+  <Accordion title="Could not find Subnautica installation">
+    **Error:** `Could not find Subnautica installation`
+    
+    **Solution:**
+    - Ensure Subnautica is installed
+    - Set the game path in the launcher
+    - Verify the installation directory is valid
+  </Accordion>
+  
+  <Accordion title="Server starts but players can't connect">
+    **Possible causes:**
+    - Port forwarding not configured correctly
+    - Firewall blocking connections
+    - Wrong IP address provided to players
+    - Server and client version mismatch
+    
+    See [Troubleshooting](/guides/troubleshooting) for detailed solutions.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Customize your server settings
+  </Card>
+  <Card title="Joining a Game" icon="users" href="/guides/joining-game">
+    Learn how players connect to your server
+  </Card>
+</CardGroup>

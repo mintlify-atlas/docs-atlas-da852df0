@@ -1,80 +1,219 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with Nitrox Unlocked in minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will help you get Nitrox Unlocked up and running quickly. Follow these steps to start playing Subnautica with friends.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Make sure you have already [installed Nitrox Unlocked](/installation) before proceeding with this guide.
 </Note>
+
+## Choose Your Path
+
+There are two ways to get started with multiplayer:
+
+<CardGroup cols={2}>
+  <Card title="Host a Game" icon="server" href="#hosting-a-local-game">
+    Start your own server and invite friends
+  </Card>
+  <Card title="Join a Game" icon="right-to-bracket" href="#joining-an-existing-server">
+    Connect to an existing multiplayer server
+  </Card>
+</CardGroup>
+
+## Hosting a Local Game
+
+If you want to host a game for you and your friends:
+
+<Steps>
+  <Step title="Launch Nitrox">
+    Open the Nitrox Launcher application you installed.
+  </Step>
+
+  <Step title="Configure Game Path">
+    If this is your first time launching, you'll need to set your Subnautica game path:
+    
+    - Click the **Settings** icon
+    - Browse to your Subnautica installation folder
+    - Click **Save**
+    
+    Common locations:
+    - **Windows**: `C:\Program Files\Subnautica\` or `C:\Games\Subnautica\`
+    - **Linux**: `~/.local/share/Steam/steamapps/common/Subnautica/`
+    - **macOS**: `~/Library/Application Support/Steam/steamapps/common/Subnautica/`
+  </Step>
+
+  <Step title="Start the Server">
+    In the launcher's server tab:
+    
+    - Click **Create New Server** or select an existing save
+    - Configure basic settings:
+      - Server name
+      - Max players (default: 10)
+      - Password (optional)
+      - Game mode (Survival, Freedom, Hardcore, or Creative)
+    - Click **Start Server**
+    
+    The embedded server will start in the background.
+  </Step>
+
+  <Step title="Launch the Game">
+    - Switch to the **Play** tab
+    - Click **Play Game**
+    - Subnautica will launch with Nitrox multiplayer enabled
+  </Step>
+
+  <Step title="Connect to Your Server">
+    In the Subnautica main menu:
+    
+    - You'll see the multiplayer menu
+    - Your local server should appear in the LAN servers list
+    - Click on your server and press **Join**
+    - Enter the password if you set one
+  </Step>
+</Steps>
+
+<Warning>
+  Make sure your firewall allows connections on **port 11000 (UDP)** for other players to connect.
+</Warning>
+
+### Invite Friends
+
+For friends to join your server, they need:
+
+1. **Your IP address**: Find it at [whatismyip.com](https://www.whatismyip.com)
+2. **Port forwarding**: Forward **UDP port 11000** on your router to your PC
+3. **Server password**: If you set one
+
+Friends can then:
+- Open their Nitrox-enabled Subnautica
+- Click **Add Server** in the multiplayer menu
+- Enter your IP address and port (default: 11000)
+- Connect with the password
+
+## Joining an Existing Server
+
+If someone else is hosting:
+
+<Steps>
+  <Step title="Get Server Details">
+    Get the following information from the server host:
+    
+    - Server IP address
+    - Port (usually 11000)
+    - Password (if required)
+  </Step>
+
+  <Step title="Launch Nitrox">
+    Open the Nitrox Launcher and click **Play Game** to start Subnautica with multiplayer.
+  </Step>
+
+  <Step title="Add the Server">
+    In the Subnautica multiplayer menu:
+    
+    - Click **Add Server** or **Direct Connect**
+    - Enter the server IP address and port
+    - Save it to your server list (optional)
+  </Step>
+
+  <Step title="Connect">
+    - Select the server from your list
+    - Click **Join**
+    - Enter the password if prompted
+    - Wait for the connection to establish
+  </Step>
+</Steps>
+
+## Your First Multiplayer Session
+
+Once connected to a server, here are some things to try:
+
+### Basic Multiplayer Concepts
+
+<Accordion title="Player Synchronization">
+  All players share the same world but have their own:
+  - Inventory
+  - PDA entries and blueprints (synchronized on discovery)
+  - Oxygen levels and health
+  - Position and actions (visible to all players)
+</Accordion>
+
+<Accordion title="Building Together">
+  - Multiple players can build on the same base
+  - Builders place items, and they're synchronized to all clients
+  - Be careful not to deconstruct while someone is building
+  - Use the in-game chat to coordinate construction
+</Accordion>
+
+<Accordion title="Vehicles">
+  - Vehicles can be used by any player
+  - Only one player can pilot a vehicle at a time
+  - Cyclops submarine supports multiple players aboard
+  - Vehicle upgrades and customization are synchronized
+</Accordion>
+
+<Accordion title="Story Progression">
+  - Story events trigger for all players
+  - Radio messages are shared
+  - PDA logs and data downloads sync to everyone
+  - Major events (Aurora explosion, etc.) happen for the whole server
+</Accordion>
+
+### Using Chat Commands
+
+Press **Enter** to open the chat and communicate with other players. You can also use commands:
+
+```
+/help           - Show available commands
+/list           - List all connected players
+/whisper <name> - Send a private message
+/ping           - Check your latency
+```
+
+<Note>
+  More commands are available depending on your permission level. See [Client Commands](/reference/client-commands) for a full list.
+</Note>
+
+## Common Issues
+
+<Accordion title="Can't see the server in LAN list">
+  - Make sure you're on the same network
+  - Check that the server is running
+  - Try using **Direct Connect** with `localhost` or `127.0.0.1:11000`
+</Accordion>
+
+<Accordion title="Connection refused or timeout">
+  - Verify the server is running and accessible
+  - Check firewall settings on both client and server
+  - Confirm port forwarding is configured correctly
+  - Ensure you're using the correct IP address and port
+</Accordion>
+
+<Accordion title="Game crashes on launch">
+  - Verify your Subnautica installation is up to date
+  - Make sure no other mods are installed (Nitrox may conflict)
+  - Check the Nitrox logs in `Nitrox Launcher/logs/`
+  - See the full [Troubleshooting Guide](/guides/troubleshooting)
+</Accordion>
+
+## Next Steps
+
+Now that you're up and running, explore these topics to get the most out of Nitrox:
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="gear" href="/guides/configuration">
+    Customize game mode, permissions, and server settings
+  </Card>
+  <Card title="Hosting a Dedicated Server" icon="server" href="/guides/hosting-server">
+    Run a persistent server without the launcher
+  </Card>
+  <Card title="Features Overview" icon="stars" href="/features/multiplayer">
+    Learn about all multiplayer features and capabilities
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Solve common problems and errors
+  </Card>
+</CardGroup>

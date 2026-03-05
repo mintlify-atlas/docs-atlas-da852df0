@@ -1,0 +1,230 @@
+---
+title: Multiplayer
+description: How multiplayer works in Nitrox Unlocked
+---
+
+Nitrox Unlocked transforms Subnautica into a multiplayer experience by enabling real-time cooperative gameplay with multiple players exploring the same world simultaneously.
+
+## How Multiplayer Works
+
+Nitrox uses a client-server architecture where one player hosts a dedicated server and others connect to it.
+
+<CardGroup cols={2}>
+  <Card title="Server" icon="server">
+    Runs the game world and manages all game state, entity spawning, and player coordination
+  </Card>
+  <Card title="Clients" icon="users">
+    Connect to the server and send/receive updates about player actions and world changes
+  </Card>
+</CardGroup>
+
+### Connection Flow
+
+When a player connects to a Nitrox server, the following sequence occurs:
+
+<Steps>
+  <Step title="Policy Negotiation">
+    Client requests server policy and validates version compatibility
+    
+    ```csharp
+    // From MultiplayerSessionManager.cs:60
+    public void ProcessSessionPolicy(MultiplayerSessionPolicy policy)
+    {
+        SessionPolicy = policy;
+        Version localVersion = NitroxEnvironment.Version;
+        NitroxVersion nitroxVersion = new(localVersion.Major, localVersion.Minor);
+        // Version check occurs here
+    }
+    ```
+  </Step>
+  
+  <Step title="Session Reservation">
+    Player requests a slot on the server with their username and settings
+    
+    The server validates:
+    - Player capacity hasn't been reached
+    - Password is correct (if required)
+    - Username is valid (3-25 alphanumeric characters)
+  </Step>
+  
+  <Step title="Initial Sync">
+    Server sends the complete world state to the joining player, including:
+    - All entities and their positions
+    - Other connected players
+    - World data and story progression
+    - Base structures
+  </Step>
+  
+  <Step title="Active Session">
+    Player joins and begins sending/receiving real-time updates
+  </Step>
+</Steps>
+
+<Note>
+The initial sync process has a configurable timeout (default: 120 seconds) defined in `SubnauticaServerConfig.cs:12`.
+</Note>
+
+## Player Synchronization
+
+Each player's state is continuously synchronized across all clients.
+
+### Movement Synchronization
+
+Player position and rotation are broadcast using unreliable sequenced packets for optimal performance:
+
+```csharp
+// From LocalPlayer.cs:60
+public void BroadcastLocation(Vector3 location, Vector3 velocity, 
+    Quaternion bodyRotation, Quaternion aimingRotation)
+{
+    PlayerMovement playerMovement = new(PlayerId.Value, 
+        location.ToDto(), velocity.ToDto(), 
+        bodyRotation.ToDto(), aimingRotation.ToDto());
+    
+    packetSender.Send(playerMovement);
+}
+```
+
+The `PlayerMovement` packet uses `UNRELIABLE_SEQUENCED` delivery for low latency at the cost of potential packet loss.
+
+### Player Stats Synchronization
+
+Vital statistics are synchronized reliably:
+
+```csharp
+// From LocalPlayer.cs:96
+public void BroadcastStats(float oxygen, float maxOxygen, float health, 
+    float food, float water, float infectionAmount)
+{
+    packetSender.Send(new PlayerStats(PlayerId.Value, oxygen, maxOxygen, 
+        health, food, water, infectionAmount));
+}
+```
+
+<Accordion title="Synchronized Player Properties">
+  - **Position & Rotation**: Body and aiming orientation
+  - **Velocity**: Movement speed for animation
+  - **Health**: Current and maximum HP
+  - **Oxygen**: Current and maximum O2
+  - **Food & Water**: Hunger and thirst levels
+  - **Infection**: Kharaa bacterium infection progress
+  - **Equipment**: Held items and visible equipment
+  - **Animations**: Swimming, walking, vehicle states
+  - **Location Context**: Current vehicle, base, or escape pod
+</Accordion>
+
+### Remote Player Representation
+
+Remote players are fully rendered with:
+
+- 3D character models with animations
+- Equipment visibility (tools, tanks, etc.)
+- Health and infection visual effects
+- Creature targeting (remote players can be attacked)
+- Collision detection for building
+
+```csharp
+// From RemotePlayer.cs:404
+private void SetupBody()
+{
+    // Set as a target for creatures
+    EcoTarget sharkEcoTarget = Body.AddComponent<EcoTarget>();
+    sharkEcoTarget.SetTargetType(EcoTargetType.Shark);
+    
+    // Enable collision for building obstruction
+    Collider = Body.AddComponent<CapsuleCollider>();
+    Collider.isTrigger = true;
+}
+```
+
+## Session Management
+
+### Player Capacity
+
+The maximum number of players is configurable in `server.cfg`:
+
+```cfg
+MaxConnections = 100
+```
+
+<Warning>
+While the default is 100 players, actual performance depends on server hardware and network bandwidth. Most servers work well with 4-10 players.
+</Warning>
+
+### Player Identification
+
+Each player receives a unique `PlayerId` (ushort) when they first join:
+
+```csharp
+// From PlayerManager.cs:32
+private ushort currentPlayerId;
+
+// IDs are sequential and persist across sessions
+// Player data is saved in PlayerData.json/protobuf
+```
+
+### Connection States
+
+Players progress through connection stages tracked by `MultiplayerSessionConnectionStage`:
+
+- `DISCONNECTED`: Not connected to any server
+- `ESTABLISHING_SERVER_POLICY`: Requesting server settings
+- `SESSION_RESERVED`: Slot reserved, awaiting world data
+- `SESSION_JOINED`: Fully connected and in-game
+
+## Limitations
+
+<CardGroup cols={2}>
+  <Card title="No Host Migration" icon="triangle-exclamation">
+    If the server shuts down, all players are disconnected. The session cannot be transferred to another player.
+  </Card>
+  
+  <Card title="Save File Management" icon="floppy-disk">
+    Only the server manages world saves. Clients do not save world state locally.
+  </Card>
+  
+  <Card title="Version Compatibility" icon="code-branch">
+    All players must use the exact same Nitrox version (major.minor) as the server.
+  </Card>
+  
+  <Card title="Password Protected" icon="lock">
+    Servers can require passwords. Admin commands require a separate admin password.
+  </Card>
+</CardGroup>
+
+### Performance Considerations
+
+- **Initial sync time** increases with world complexity (bases, vehicles, creatures)
+- **Network bandwidth** scales with active player count
+- **Server hardware** must handle all simulation and entity management
+- **Entity cache** can be pre-built to improve player joining performance (see `CreateFullEntityCache` in server.cfg)
+
+## Player Permissions
+
+Nitrox implements a permission system with four levels:
+
+```csharp
+public enum Perms
+{
+    PLAYER,      // Default players
+    MODERATOR,   // Can use broadcast and kick commands
+    ADMIN,       // Full access to all commands
+    CONSOLE      // Server console only
+}
+```
+
+Players connecting from localhost automatically receive admin permissions by default (configurable via `LocalhostIsAdmin` in server.cfg).
+
+## Related Pages
+
+<CardGroup cols={3}>
+  <Card title="Synchronization" icon="arrows-rotate" href="/features/synchronization">
+    Learn how entities, vehicles, and bases are synchronized
+  </Card>
+  <Card title="World Management" icon="globe" href="/features/world-management">
+    Understand save files and world persistence
+  </Card>
+  <Card title="Communication" icon="comments" href="/features/communication">
+    In-game chat and command system
+  </Card>
+</CardGroup>

@@ -1,0 +1,262 @@
+---
+title: Installation
+description: How to install Nitrox Unlocked for Subnautica multiplayer
+---
+
+# Installing Nitrox Unlocked
+
+This guide will walk you through installing Nitrox Unlocked and configuring it to work with your copy of Subnautica.
+
+## System Requirements
+
+Before you begin, ensure your system meets these requirements:
+
+- **Operating System**: Windows 10/11, Linux (via Wine/Proton), or macOS
+- **Subnautica**: A valid installation of Subnautica (any version)
+- **Disk Space**: ~500 MB for Nitrox Unlocked installation
+- **Network**: Internet connection for download; port 11000 (default) for multiplayer
+- **.NET Runtime**: .NET 7.0+ (automatically included with the launcher)
+
+<Note>
+  The launcher includes game version validation. Outdated versions of Subnautica may not be compatible with the latest Nitrox Unlocked build.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Download Nitrox Unlocked">
+    Navigate to the [GitHub Releases page](https://github.com/Papela/Nitrox-Cracked-Mod/releases) and download the latest release.
+    
+    Look for the file named something like `Nitrox-Unlocked-vX.X.X.zip` where X.X.X is the version number.
+    
+    <Warning>
+      Always download from the official GitHub repository to ensure you're getting a safe, unmodified version.
+    </Warning>
+  </Step>
+  
+  <Step title="Extract the Archive">
+    Extract the downloaded ZIP file to a location of your choice. We recommend:
+    
+    - Windows: `C:\Program Files\NitroxUnlocked\`
+    - Linux: `~/NitroxUnlocked/`
+    - macOS: `~/Applications/NitroxUnlocked/`
+    
+    <Note>
+      Avoid extracting to locations that require administrator permissions, as this may cause issues with file operations.
+    </Note>
+  </Step>
+  
+  <Step title="Launch the Nitrox Launcher">
+    Navigate to the extracted folder and run the launcher executable:
+    
+    - Windows: `Nitrox.Launcher.exe`
+    - Linux/macOS: `Nitrox.Launcher` (may need to mark as executable first)
+    
+    The launcher will initialize and display the main interface.
+  </Step>
+  
+  <Step title="Configure Game Path">
+    When you first launch Nitrox, you'll need to tell it where Subnautica is installed:
+    
+    1. Click the **Options** or **Settings** icon in the launcher
+    2. Locate the "Game Path" or "Subnautica Installation" field
+    3. Click **Browse** and navigate to your Subnautica installation directory
+    
+    **Common installation paths:**
+    
+    ```bash Windows (Steam)
+    C:\Program Files (x86)\Steam\steamapps\common\Subnautica
+    ```
+    
+    ```bash Windows (Epic Games)
+    C:\Program Files\Epic Games\Subnautica
+    ```
+    
+    ```bash Linux (Steam)
+    ~/.steam/steam/steamapps/common/Subnautica
+    ```
+    
+    ```bash macOS (Steam)
+    ~/Library/Application Support/Steam/steamapps/common/Subnautica
+    ```
+    
+    <Note>
+      The launcher will validate your game path. You should see confirmation that Subnautica was detected successfully.
+    </Note>
+  </Step>
+  
+  <Step title="Initial Setup Complete">
+    Your Nitrox Unlocked installation is now ready! The launcher will:
+    
+    - Automatically patch the game files when you start multiplayer
+    - Create necessary configuration files in the Nitrox directory
+    - Set up the embedded server functionality
+    
+    You can now proceed to [Quick Start](/quickstart) to join or host your first multiplayer session.
+  </Step>
+</Steps>
+
+## Verifying Installation
+
+To verify that Nitrox Unlocked is installed correctly:
+
+1. **Check the launcher version**: The main launcher window should display the current version (e.g., "RELEASE 1.8.1.0")
+2. **Game path validation**: In settings, confirm the game path shows a green checkmark or success indicator
+3. **Platform detection**: The launcher should automatically detect your game platform (Steam, Epic, Standalone, etc.)
+
+## Game Path Configuration
+
+The launcher uses the `GameInspect` utility to validate your Subnautica installation. It performs several checks:
+
+### Version Validation
+
+Nitrox Unlocked checks that your game version is compatible:
+
+```plaintext
+Minimum supported version: Check plastic_status.ignore file
+Location: <Game Path>/Subnautica_Data/StreamingAssets/SNUnmanagedData/plastic_status.ignore
+```
+
+If your game is outdated, you'll see an error dialog with:
+- Your current game version
+- The minimum required version
+- Path to the version file
+
+<Warning>
+  Nitrox does not support legacy versions of Subnautica. If you receive an "Outdated Game Detected" error, update your game to the latest version.
+</Warning>
+
+### Mod Compatibility Warnings
+
+The launcher will warn you if it detects other mods:
+
+- **BepInEx mods**: Detected in `<Game Path>/BepInEx/plugins/` or `BepInEx/patchers/`
+- **QModManager**: Detected in the game folder
+
+<Note>
+  **Nitrox multiplayer does not support other mods.** Mods may cause instability, desynchronization, or crashes in multiplayer sessions.
+</Note>
+
+## Firewall and Network Configuration
+
+### Port Forwarding
+
+If you plan to host a server accessible from the internet:
+
+<Steps>
+  <Step title="Enable UPnP (Automatic)">
+    Nitrox Unlocked includes automatic port forwarding via UPnP:
+    
+    - This is enabled by default in `server.cfg`
+    - Set `AutoPortForward = true` (default)
+    
+    If successful, you don't need manual port forwarding.
+  </Step>
+  
+  <Step title="Manual Port Forwarding (If Needed)">
+    If UPnP fails or is disabled on your router:
+    
+    1. Access your router's admin panel (usually at `192.168.1.1` or `192.168.0.1`)
+    2. Navigate to Port Forwarding settings
+    3. Forward port **11000** (UDP and TCP) to your computer's local IP
+    4. Save and restart your router if required
+  </Step>
+</Steps>
+
+### Firewall Rules
+
+Allow Nitrox through your firewall:
+
+**Windows Firewall:**
+```powershell
+New-NetFirewallRule -DisplayName "Nitrox Server" -Direction Inbound -Protocol UDP -LocalPort 11000 -Action Allow
+New-NetFirewallRule -DisplayName "Nitrox Server" -Direction Inbound -Protocol TCP -LocalPort 11000 -Action Allow
+```
+
+**Linux (UFW):**
+```bash
+sudo ufw allow 11000/tcp
+sudo ufw allow 11000/udp
+```
+
+## Common Installation Issues
+
+### "Location of Subnautica is unknown"
+
+**Solution**: The game path is not configured or is invalid.
+
+1. Go to Options/Settings in the launcher
+2. Set the correct path to your Subnautica installation
+3. Ensure the path contains `Subnautica.exe` (Windows) or the Subnautica executable
+
+### "Launcher files seems corrupted"
+
+**Solution**: The `NitroxPatcher.dll` file is missing from the installation.
+
+From the launcher code (`LaunchGameViewModel.cs:124-131`):
+
+```csharp
+string patcherDllPath = Path.Combine(NitroxUser.ExecutableRootPath, "lib", "net472", PATCHER_DLL_NAME);
+if (!File.Exists(patcherDllPath))
+{
+    LauncherNotifier.Error("Launcher files seems corrupted, please contact us");
+    return false;
+}
+```
+
+1. Re-download Nitrox Unlocked from the official GitHub releases
+2. Extract the full archive to a new directory
+3. Don't delete or move files from the installation folder
+
+### "An instance of Subnautica is already running"
+
+**Solution**: Close any running Subnautica processes.
+
+1. Close Subnautica completely
+2. Check Task Manager (Windows) or Activity Monitor (macOS) for lingering processes
+3. Alternatively, enable "Allow Multiple Game Instances" in launcher settings
+
+### Game Won't Start After Installation
+
+**Possible causes:**
+
+1. **Antivirus blocking**: Add Nitrox folder to antivirus exclusions
+2. **Missing .NET runtime**: Ensure .NET 7.0+ is installed
+3. **Corrupted game files**: Verify Subnautica game files through your game platform
+4. **Incompatible mods**: Remove BepInEx and QModManager from game directory
+
+## Server Configuration Files
+
+After first launch, Nitrox creates several configuration files:
+
+- `server.cfg`: Server settings (port, game mode, passwords, etc.)
+- Save files: Located in the saves folder specified during server creation
+
+These files are created automatically and don't require manual configuration for basic usage. See [Server Configuration](/reference/server-config) for advanced settings.
+
+## Next Steps
+
+Your installation is complete! Now you can:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+    Jump into your first multiplayer session
+  </Card>
+  
+  <Card title="Server Configuration" icon="gear" href="/reference/server-config">
+    Customize server settings and game modes
+  </Card>
+</CardGroup>
+
+## Updating Nitrox Unlocked
+
+To update to a newer version:
+
+1. Download the latest release from GitHub
+2. Close the launcher and any running servers
+3. Extract the new version over your existing installation (or to a new folder)
+4. Your save files and configuration are preserved
+
+<Warning>
+  Always back up your save files before updating, especially if the update includes changes to the save format.
+</Warning>

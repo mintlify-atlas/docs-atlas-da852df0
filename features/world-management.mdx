@@ -1,0 +1,477 @@
+---
+title: World Management
+description: Save files, world persistence, and server world management in Nitrox
+---
+
+Nitrox servers manage the persistent world state including player data, entities, bases, and story progression. Understanding world management is essential for server operators.
+
+## Save File Architecture
+
+Nitrox saves world data in multiple files for better organization and performance:
+
+<CardGroup cols={2}>
+  <Card title="Version" icon="tag">
+    Nitrox version metadata for save compatibility
+  </Card>
+  <Card title="PlayerData" icon="user">
+    All player information (stats, inventory, permissions)
+  </Card>
+  <Card title="WorldData" icon="globe">
+    Game settings, seed, story state, and timing
+  </Card>
+  <Card title="EntityData" icon="cube">
+    All spawned entities and their states
+  </Card>
+  <Card title="GlobalRootData" icon="layer-group">
+    Persistent root-level entities (bases, large structures)
+  </Card>
+</CardGroup>
+
+### File Formats
+
+Nitrox supports two serialization formats:
+
+```csharp
+// From SubnauticaServerConfig.cs:99
+public enum ServerSerializerMode
+{
+    JSON,      // Human-readable, editable, larger files
+    PROTOBUF   // Binary, compact, faster, not editable
+}
+```
+
+<Accordion title="Format Comparison">
+  **JSON Format**
+  - Files: `Version.json`, `PlayerData.json`, etc.
+  - Readable and editable in text editor
+  - Useful for debugging and manual fixes
+  - Larger file size
+  - Supports save file upgrades between Nitrox versions
+  
+  **ProtoBuf Format**
+  - Files: `Version.nitrox`, `PlayerData.nitrox`, etc.
+  - Binary serialization for better performance
+  - Smaller file size
+  - Faster save/load times
+  - Cannot be manually edited
+  - **Cannot be upgraded** - must use JSON for version migrations
+</Accordion>
+
+<Warning>
+If using ProtoBuf, you cannot upgrade save files when updating Nitrox versions. Use JSON if you want automatic save migration support.
+</Warning>
+
+## World Persistence
+
+### Save Directory Structure
+
+```
+NitroxServer/
+└── saves/
+    └── [WorldName]/
+        ├── Version.json
+        ├── PlayerData.json
+        ├── WorldData.json
+        ├── EntityData.json
+        ├── GlobalRootData.json
+        ├── server.cfg
+        └── Backups/
+            ├── Backup - 2026-03-05 14.30.00.zip
+            └── Backup - 2026-03-05 15.00.00.zip
+```
+
+### World Data Structure
+
+```csharp
+// From World.cs:11
+public class World
+{
+    public PlayerManager PlayerManager { get; set; }
+    public TimeKeeper TimeKeeper { get; set; }
+    public EntityRegistry EntityRegistry { get; set; }
+    public WorldEntityManager WorldEntityManager { get; set; }
+    public BuildingManager BuildingManager { get; set; }
+    public StoryManager StoryManager { get; set; }
+    public GameData GameData { get; set; }
+    public SessionSettings SessionSettings { get; set; }
+    public NitroxGameMode GameMode { get; set; }
+    public string Seed { get; set; }
+    // ... and more
+}
+```
+
+### Automatic Saving
+
+The server automatically saves world state at regular intervals:
+
+```cfg
+# In server.cfg
+SaveInterval = 120000  # Milliseconds (default: 2 minutes)
+DisableAutoSave = false
+```
+
+<Steps>
+  <Step title="Save Triggered">
+    Timer expires or manual save command issued
+  </Step>
+  <Step title="Serialize Data">
+    World state converted to JSON or ProtoBuf format
+  </Step>
+  <Step title="Write Files">
+    All save files written atomically to disk
+  </Step>
+  <Step title="Post-Save Hook">
+    Optional external command runs (for backups, cloud sync, etc.)
+  </Step>
+</Steps>
+
+```csharp
+// From WorldPersistence.cs:199
+internal bool Save(PersistedWorldData persistedData, string saveDir)
+{
+    Serializer.Serialize(Path.Combine(saveDir, $"Version{FileEnding}"), 
+        new SaveFileVersion());
+    Serializer.Serialize(Path.Combine(saveDir, $"PlayerData{FileEnding}"), 
+        persistedData.PlayerData);
+    Serializer.Serialize(Path.Combine(saveDir, $"WorldData{FileEnding}"), 
+        persistedData.WorldData);
+    // ... more files
+    
+    Log.Info("World state saved");
+    return true;
+}
+```
+
+### Post-Save Commands
+
+You can configure an external command to run after each successful save:
+
+```cfg
+# In server.cfg
+PostSaveCommandPath = "C:\\Scripts\\backup-to-cloud.bat"
+```
+
+Useful for:
+- Automated backups to cloud storage
+- Discord notifications
+- File compression
+- Remote backup synchronization
+
+## Backup System
+
+Nitrox includes an automatic backup system that creates restore points:
+
+### Backup Configuration
+
+```cfg
+# In server.cfg
+MaxBackups = 10            # Number of backups to keep (default: 10)
+DisableAutoBackup = false  # Set to true to disable backups
+```
+
+### How Backups Work
+
+<Steps>
+  <Step title="Backup Trigger">
+    Automatic backup before world save or manual `/backup` command
+  </Step>
+  <Step title="Copy Files">
+    All save files copied to timestamped directory
+  </Step>
+  <Step title="Compress">
+    Directory zipped into `.zip` archive
+  </Step>
+  <Step title="Cleanup">
+    Oldest backups deleted if count exceeds `MaxBackups`
+  </Step>
+</Steps>
+
+```csharp
+// From WorldPersistence.cs:73
+string backupDir = Path.Combine(saveDir, "Backups");
+string tempOutDir = Path.Combine(backupDir, 
+    $"Backup - {DateTime.Now.ToString(BACKUP_DATE_TIME_FORMAT)}");
+// Format: "yyyy-MM-dd HH.mm.ss"
+```
+
+<Note>
+Backups are stored as ZIP files with human-readable timestamps. You can manually extract and restore them if needed.
+</Note>
+
+### Restoring from Backup
+
+To restore a backup:
+
+<Steps>
+  <Step title="Stop Server">
+    Shut down the Nitrox server completely
+  </Step>
+  <Step title="Locate Backup">
+    Find the backup ZIP in `saves/[WorldName]/Backups/`
+  </Step>
+  <Step title="Extract Files">
+    Extract the backup ZIP contents
+  </Step>
+  <Step title="Replace Save Files">
+    Copy extracted files over current save files in `saves/[WorldName]/`
+  </Step>
+  <Step title="Restart Server">
+    Start the server with restored world data
+  </Step>
+</Steps>
+
+<Warning>
+Always stop the server before manually restoring backups to prevent data corruption.
+</Warning>
+
+## World Seed
+
+Each Nitrox world has a unique seed that determines random generation:
+
+```cfg
+# In server.cfg
+Seed = ""  # Leave blank for random seed
+# Example: Seed = "TCCBIBZXAB"
+```
+
+- Seeds are 10 alphanumeric characters
+- Determines spawn positions, entity placements, and randomized elements
+- Saved in `WorldData` after first world generation
+- Cannot be changed after world creation
+
+```csharp
+// From WorldPersistence.cs:133
+string seed = pWorldData.WorldData.Seed;
+if (string.IsNullOrWhiteSpace(seed))
+{
+    seed = StringHelper.GenerateRandomString(10);
+}
+XorRandom.InitSeed(seed.GetHashCode());
+Log.Info($"Loading world with seed {seed}");
+```
+
+## World Loading
+
+When the server starts, it attempts to load existing world data:
+
+<Steps>
+  <Step title="Check for Save Files">
+    Look for `Version` file in save directory
+  </Step>
+  <Step title="Upgrade if Needed">
+    Run save file upgrade scripts if Nitrox version changed (JSON only)
+  </Step>
+  <Step title="Deserialize Data">
+    Load all save files into memory
+  </Step>
+  <Step title="Validate Data">
+    Ensure save files are not corrupted
+  </Step>
+  <Step title="Initialize World">
+    Create World object with loaded data
+  </Step>
+  <Step title="Apply Modifiers">
+    Run world modifiers for fresh worlds
+  </Step>
+</Steps>
+
+```csharp
+// From WorldPersistence.cs:120
+public World Load(string saveName)
+{
+    Optional<World> fileLoadedWorld = 
+        LoadFromFile(Path.Combine(KeyValueStore.Instance.GetSavesFolderDir(), saveName));
+    
+    if (fileLoadedWorld.HasValue)
+    {
+        return fileLoadedWorld.Value;
+    }
+    
+    return CreateFreshWorld();
+}
+```
+
+### Fresh World Creation
+
+If no save files exist, a new world is created:
+
+```csharp
+// From WorldPersistence.cs:286
+private World CreateFreshWorld()
+{
+    PersistedWorldData pWorldData = new()
+    {
+        EntityData = EntityData.From(new List<Entity>()),
+        PlayerData = PlayerData.From(new List<Player>()),
+        WorldData = new WorldData
+        {
+            GameData = new GameData
+            {
+                PDAState = new PDAStateData(),
+                StoryGoals = new StoryGoalData(),
+                StoryTiming = new StoryTimingData()
+            },
+            ParsedBatchCells = new List<NitroxInt3>(),
+            Seed = config.Seed
+        },
+        GlobalRootData = new GlobalRootData()
+    };
+    
+    World newWorld = CreateWorld(pWorldData, config.GameMode);
+    worldModifier.ModifyWorld(newWorld);
+    return newWorld;
+}
+```
+
+## Entity Caching
+
+To improve performance when players join, Nitrox can pre-cache entities:
+
+```cfg
+# In server.cfg
+CreateFullEntityCache = false
+```
+
+<Accordion title="Entity Cache Details">
+  **When Enabled:**
+  - Server loads and caches ALL entities for the entire map on startup
+  - Significantly increases initial server load time (5-15 minutes)
+  - Players joining experience much faster initial sync
+  - Higher server memory usage
+  
+  **When Disabled (Default):**
+  - Entities loaded on-demand as players explore
+  - Fast server startup
+  - Player initial sync takes longer
+  - Lower memory footprint
+  
+  **Recommended For:**
+  - Servers with many players joining frequently
+  - High-performance server hardware
+  - Mature worlds with extensive player exploration
+</Accordion>
+
+<Warning>
+Full entity cache can add 5-15 minutes to server startup time depending on world size and exploration.
+</Warning>
+
+## Game Mode & Settings
+
+World settings are configured in `server.cfg` and saved in world data:
+
+```cfg
+# Game mode (affects all players)
+GameMode = SURVIVAL  # Options: SURVIVAL, FREEDOM, HARDCORE, CREATIVE
+
+# Server-wide settings
+KeepInventoryOnDeath = false
+PvPEnabled = true
+DisableConsole = false
+
+# Default player stats
+DefaultOxygenValue = 45
+DefaultMaxOxygenValue = 45
+DefaultHealthValue = 80
+DefaultHungerValue = 50.5
+DefaultThirstValue = 90.5
+DefaultInfectionValue = 0.1
+```
+
+<Note>
+Game mode changes affect the entire world and all players. Individual players cannot have different game modes.
+</Note>
+
+## Host Migration
+
+<Warning>
+Nitrox **does not support host migration**. If the server stops, all players are disconnected and cannot continue without restarting the server.
+</Warning>
+
+Implications:
+- Server must remain running for players to stay connected
+- Server crashes disconnect all players
+- Cannot transfer hosting to another player mid-session
+- Use automatic restarts and monitoring for server reliability
+
+## Server Commands
+
+World management commands available via server console or in-game (with admin perms):
+
+<AccordionGroup>
+  <Accordion title="/save">
+    Manually trigger a world save immediately
+    
+    ```bash
+    /save
+    ```
+  </Accordion>
+  
+  <Accordion title="/backup">
+    Create a backup of the current world state
+    
+    ```bash
+    /backup
+    ```
+  </Accordion>
+  
+  <Accordion title="/autosave [on|off]">
+    Enable or disable automatic saving
+    
+    ```bash
+    /autosave off  # Disable auto-save
+    /autosave on   # Re-enable auto-save
+    ```
+  </Accordion>
+  
+  <Accordion title="/stop">
+    Gracefully shut down the server (saves world first)
+    
+    ```bash
+    /stop
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Corrupted Save Files
+
+If world fails to load:
+
+1. Check server logs for specific error messages
+2. Restore from most recent backup in `Backups/` folder
+3. If using ProtoBuf, switch to JSON and retry
+4. Contact Nitrox support with error logs
+
+### Save File Upgrades Failing
+
+```csharp
+// From WorldPersistence.cs:330
+if (config.SerializerMode == ServerSerializerMode.PROTOBUF)
+{
+    Log.Info("Can't upgrade while using ProtoBuf as serializer");
+}
+```
+
+**Solution:** Switch to JSON serializer mode before updating Nitrox versions.
+
+### Performance Issues
+
+- Reduce `SaveInterval` if saves are causing lag spikes
+- Enable `CreateFullEntityCache` for faster joins (slower startup)
+- Check save file size - very large worlds may need optimization
+- Monitor server RAM usage during saves
+
+## Related Pages
+
+<CardGroup cols={3}>
+  <Card title="Multiplayer" icon="users" href="/features/multiplayer">
+    Session management and player connections
+  </Card>
+  <Card title="Synchronization" icon="rotate" href="/features/synchronization">
+    Real-time entity and state synchronization
+  </Card>
+  <Card title="Communication" icon="terminal" href="/features/communication">
+    Commands for world management
+  </Card>
+</CardGroup>

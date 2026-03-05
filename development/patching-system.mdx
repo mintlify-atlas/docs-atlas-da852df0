@@ -1,0 +1,426 @@
+---
+title: Patching System
+description: Deep dive into Nitrox's Harmony-based runtime patching system
+---
+
+Nitrox uses [Harmony](https://harmony.pardeike.net/) (specifically HarmonyX) to modify Subnautica's behavior at runtime without modifying the game's original files. This approach allows the mod to intercept, modify, and extend game functionality for multiplayer support.
+
+## How Harmony Patching Works
+
+Harmony patches work by modifying the Common Intermediate Language (CIL) of methods at runtime:
+
+1. **Target Method**: Identify a method in Subnautica's code to patch
+2. **Patch Type**: Choose how to modify it (Prefix, Postfix, Transpiler, or Finalizer)
+3. **Patch Application**: Harmony rewrites the method's IL code to include your modifications
+4. **Runtime Execution**: When the game calls the method, your patch executes
+
+<Note>
+Harmony patches are non-destructive and can be removed at runtime, making them ideal for dynamic multiplayer features that only need to be active during a session.
+</Note>
+
+## Patch Types in Nitrox
+
+Nitrox uses two categories of patches:
+
+### Persistent Patches
+
+Applied when the game starts and remain active for the entire process lifetime. Used for core functionality that must always be present.
+
+```csharp
+public sealed partial class Application_runInBackground_Patch : NitroxPatch, IPersistentPatch
+{
+    public static readonly MethodInfo TARGET_METHOD = 
+        Reflect.Property(() => Application.runInBackground).GetSetMethod();
+
+    public static bool Prefix(bool value)
+    {
+        if (!value)
+        {
+            Log.WarnOnce($"An attempt to set runInBackground to false was ignored.");
+            Application.runInBackground = true;
+            return false; // Skip original method
+        }
+        return true; // Execute original method
+    }
+}
+```
+
+**Location**: `NitroxPatcher/Patches/Persistent/`
+
+**Purpose**: Ensures critical Nitrox functionality (like keeping the game running in background for packet processing) is always active.
+
+### Dynamic Patches
+
+Applied when a multiplayer session starts and removed when returning to the main menu. Used for multiplayer-specific functionality.
+
+```csharp
+public sealed partial class BaseDeconstructable_Deconstruct_Patch : NitroxPatch, IDynamicPatch
+{
+    public static readonly MethodInfo TARGET_METHOD = 
+        Reflect.Method((BaseDeconstructable t) => t.Deconstruct());
+
+    public static void Prefix(BaseDeconstructable __instance)
+    {
+        // Cache data before deconstruction
+        BuildUtils.TryGetIdentifier(__instance, out cachedPieceIdentifier, 
+                                     null, __instance.face);
+    }
+
+    public static void PieceDeconstructed(BaseDeconstructable baseDeconstructable, 
+                                          ConstructableBase constructableBase, 
+                                          Base @base, bool destroyed)
+    {
+        // Send packet to server
+        Resolve<IPacketSender>().Send(new PieceDeconstructed(
+            baseId, pieceId, cachedPieceIdentifier, ghostEntity, 
+            BuildEntitySpawner.GetBaseData(@base), operationId
+        ));
+    }
+}
+```
+
+**Location**: `NitroxPatcher/Patches/Dynamic/`
+
+**Purpose**: Synchronizes game events across multiple players during active sessions.
+
+## NitroxPatcher Architecture
+
+### Entry Point
+
+The patcher is injected as Subnautica's entry point:
+
+```csharp
+// NitroxPatcher/Main.cs:60
+public static void Execute()
+{
+    if (initialized) return;
+    initialized = true;
+
+    // Register custom assembly resolver for Nitrox DLLs
+    AppDomain.CurrentDomain.AssemblyResolve += CurrentDomainOnAssemblyResolve;
+    
+    // Validate launcher path
+    if (!Directory.Exists(nitroxLauncherDir.Value))
+    {
+        Console.WriteLine("Nitrox will not load...");
+        return;
+    }
+
+    // Initialize with dependencies
+    InitWithDependencies();
+}
+```
+
+### Patch Discovery and Application
+
+Patches are automatically discovered via dependency injection:
+
+```csharp
+// NitroxPatcher/Patcher.cs:126
+private static void InitPatches()
+{
+    Log.Info("Patching Subnautica...");
+
+    // Apply all persistent patches immediately
+    foreach (IPersistentPatch patch in container.Resolve<IEnumerable<IPersistentPatch>>())
+    {
+        Log.Debug($"Applying persistent patch {patch.GetType().Name}");
+        patch.Patch(harmony);
+    }
+
+    // Register dynamic patch lifecycle hooks
+    Multiplayer.OnBeforeMultiplayerStart += Apply;
+    Multiplayer.OnAfterMultiplayerEnd += Restore;
+    
+    Log.Info("Completed patching");
+}
+```
+
+<Steps>
+  <Step title="Persistent Patches Applied">
+    All classes implementing `IPersistentPatch` are discovered and applied when the game initializes.
+  </Step>
+  
+  <Step title="Lifecycle Hooks Registered">
+    Dynamic patches are registered to apply when multiplayer starts and restore when it ends.
+  </Step>
+  
+  <Step title="Dynamic Patches Applied">
+    When player joins/hosts a session, `Apply()` method patches all `IDynamicPatch` implementations.
+  </Step>
+  
+  <Step title="Dynamic Patches Removed">
+    When returning to main menu, `Restore()` unpatch all dynamic modifications.
+  </Step>
+</Steps>
+
+## Patch Method Types
+
+### Prefix Patches
+
+Run **before** the original method. Can prevent the original method from executing.
+
+```csharp
+public static bool Prefix(OriginalClass __instance, ParameterType param)
+{
+    // Return false to skip original method
+    // Return true to execute original method
+    return true;
+}
+```
+
+**Use cases**:
+- Prevent certain game actions in multiplayer
+- Validate conditions before execution
+- Cache data before the original method modifies it
+
+### Postfix Patches
+
+Run **after** the original method completes.
+
+```csharp
+public static void Postfix(OriginalClass __instance, ref ReturnType __result)
+{
+    // Modify __result to change return value
+    // Access __instance for object state
+}
+```
+
+**Use cases**:
+- Send packets after game events
+- Modify return values
+- React to completed actions
+
+### Transpiler Patches
+
+Modify the IL code of the method itself. Most powerful but complex.
+
+```csharp
+public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, 
+                                                       IEnumerable<CodeInstruction> instructions)
+{
+    return instructions.Transform(BaseDeconstructInstructionPattern1, (label, instruction) =>
+    {
+        if (label.Equals("Insert1"))
+        {
+            return InstructionsToAdd(true);
+        }
+        return null;
+    });
+}
+```
+
+**Use cases**:
+- Insert code in the middle of a method
+- Modify local variables
+- Complex control flow changes
+
+<Warning>
+Transpiler patches are fragile and may break with game updates. Use them sparingly and document the IL pattern you're matching.
+</Warning>
+
+### Finalizer Patches
+
+Run after the method, even if it throws an exception. Used for cleanup.
+
+```csharp
+public static void Finalizer(Exception __exception)
+{
+    if (__exception != null)
+    {
+        Log.Error($"Method failed: {__exception}");
+    }
+}
+```
+
+## Creating a New Patch
+
+### Step 1: Create the Patch Class
+
+Create a new file in `NitroxPatcher/Patches/Dynamic/` or `Persistent/`:
+
+```csharp
+using HarmonyLib;
+using System.Reflection;
+
+namespace NitroxPatcher.Patches.Dynamic;
+
+public sealed partial class YourClassName_MethodName_Patch : NitroxPatch, IDynamicPatch
+{
+    // Define the target method
+    public static readonly MethodInfo TARGET_METHOD = 
+        Reflect.Method((YourClassName t) => t.MethodName());
+}
+```
+
+### Step 2: Implement Patch Methods
+
+Add your patch logic:
+
+```csharp
+public static void Prefix(YourClassName __instance, ParameterType parameter)
+{
+    Log.Debug($"MethodName called with {parameter}");
+}
+
+public static void Postfix(YourClassName __instance)
+{
+    // Send packet to synchronize this action
+    Resolve<IPacketSender>().Send(new YourCustomPacket(__instance.Data));
+}
+```
+
+### Step 3: Automatic Registration
+
+Patches are automatically discovered by the `NitroxPatchesModule` - no manual registration needed!
+
+<Note>
+The `partial` keyword allows Harmony to generate additional code for the patch class. Always use it for patch classes.
+</Note>
+
+## Patch Best Practices
+
+<AccordionGroup>
+  <Accordion title="Name patches clearly">
+    Use the format `ClassName_MethodName_Patch` so developers can quickly identify what's being patched.
+  </Accordion>
+  
+  <Accordion title="Document why, not what">
+    ```csharp
+    /// <summary>
+    /// Prevents the game from unloading multiplayer-critical entities when
+    /// they move far from the player. Required for cross-player interactions.
+    /// </summary>
+    ```
+  </Accordion>
+  
+  <Accordion title="Use dependency injection">
+    Access services via `Resolve<T>()` instead of static references:
+    ```csharp
+    Resolve<IPacketSender>().Send(packet);
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle null cases">
+    Subnautica's code may have unexpected null values:
+    ```csharp
+    if (!@base.TryGetNitroxId(out NitroxId baseId))
+    {
+        Log.Error("Couldn't find NitroxEntity on deconstructed base");
+        return;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Choose dynamic vs persistent carefully">
+    - Use **persistent** for core functionality (logging, assembly loading)
+    - Use **dynamic** for multiplayer synchronization (entity updates, player actions)
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Patches
+
+### Enable Harmony Logging
+
+```csharp
+// NitroxPatcher/Patcher.cs:131
+HarmonyFileLog.Enabled = true; // Creates log file on desktop
+```
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Patch not applying">
+    - Check the `TARGET_METHOD` is correctly defined
+    - Verify the target method exists in the game version
+    - Ensure patch class implements `IDynamicPatch` or `IPersistentPatch`
+    - Check logs for Harmony exceptions
+  </Accordion>
+  
+  <Accordion title="Game crashes on patch">
+    - Null reference in patch method
+    - Type mismatch in parameters
+    - Transpiler generated invalid IL
+    - Check if game method signature changed
+  </Accordion>
+  
+  <Accordion title="Patch applies but doesn't work">
+    - Prefix returning true when it should return false
+    - Wrong method overload targeted
+    - Timing issue (patch runs too early/late)
+  </Accordion>
+</AccordionGroup>
+
+## Real-World Example
+
+Here's a complete dynamic patch from the codebase:
+
+```csharp
+// NitroxPatcher/Patches/Dynamic/BaseDeconstructable_Deconstruct_Patch.cs
+public sealed partial class BaseDeconstructable_Deconstruct_Patch : NitroxPatch, IDynamicPatch
+{
+    public static readonly MethodInfo TARGET_METHOD = 
+        Reflect.Method((BaseDeconstructable t) => t.Deconstruct());
+
+    private static BuildPieceIdentifier cachedPieceIdentifier;
+
+    // Cache identifier before the original method destroys it
+    public static void Prefix(BaseDeconstructable __instance)
+    {
+        BuildUtils.TryGetIdentifier(__instance, out cachedPieceIdentifier, 
+                                     null, __instance.face);
+    }
+
+    // Use transpiler to inject custom method call at specific IL locations
+    public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, 
+                                                           IEnumerable<CodeInstruction> instructions)
+    {
+        return instructions.Transform(BaseDeconstructInstructionPattern1, (label, instruction) =>
+        {
+            if (label.Equals("Insert1"))
+            {
+                return InstructionsToAdd(true);
+            }
+            return null;
+        });
+    }
+
+    // Custom method called by transpiler injection
+    public static void PieceDeconstructed(BaseDeconstructable baseDeconstructable, 
+                                          ConstructableBase constructableBase, 
+                                          Base @base, bool destroyed)
+    {
+        if (!@base.TryGetNitroxId(out NitroxId baseId))
+        {
+            Log.Error("Couldn't find NitroxEntity on deconstructed base");
+            return;
+        }
+
+        // Create and send packet to server
+        PieceDeconstructed packet = new(
+            baseId, pieceId, cachedPieceIdentifier, 
+            ghostEntity, BuildEntitySpawner.GetBaseData(@base), operationId
+        );
+        
+        Resolve<IPacketSender>().Send(packet);
+    }
+}
+```
+
+This patch:
+1. **Caches data** in Prefix before the original method destroys it
+2. **Injects IL code** via Transpiler to call custom method at precise locations
+3. **Sends packets** to synchronize base deconstruction across all players
+4. **Handles errors** gracefully with logging
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand how patches fit into the overall architecture
+  </Card>
+  
+  <Card title="Networking" icon="network-wired" href="/development/networking">
+    Learn how patches send data to the server
+  </Card>
+</CardGroup>

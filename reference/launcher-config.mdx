@@ -1,0 +1,402 @@
+---
+title: Launcher Configuration
+description: Command-line arguments and launcher settings for Nitrox
+icon: rocket-launch
+---
+
+The Nitrox Launcher provides various configuration options through command-line arguments and persistent settings stored in the launcher's configuration.
+
+## Command-Line Arguments
+
+You can pass arguments when starting the launcher to control its behavior.
+
+### Basic Usage
+
+<CodeGroup>
+```bash Windows
+Nitrox.Launcher.exe [arguments]
+```
+
+```bash Linux
+./Nitrox.Launcher [arguments]
+```
+
+```bash macOS
+./Nitrox.Launcher [arguments]
+```
+</CodeGroup>
+
+## Available Arguments
+
+### Crash Report Mode
+
+<ParamField path="--crashReport" type="boolean" default="false">
+  Opens the launcher in crash report mode, displaying the last crash log.
+  
+  **Usage:**
+  ```bash
+  Nitrox.Launcher.exe --crashReport true
+  ```
+  
+  <Note>
+  This is typically used automatically when the launcher detects a previous crash.
+  </Note>
+</ParamField>
+
+### Rendering Mode (Linux/X11)
+
+<ParamField path="--rendering" type="enum">
+  Specifies the X11 rendering mode for Linux systems.
+  
+  **Possible Values:**
+  - `Software` - Software rendering (slower but more compatible)
+  - `GLX` - OpenGL rendering via GLX
+  - `EGL` - OpenGL rendering via EGL
+  
+  **Usage:**
+  ```bash
+  ./Nitrox.Launcher --rendering Software
+  ./Nitrox.Launcher --rendering GLX
+  ```
+  
+  <Note>
+  The launcher automatically detects Wayland and uses software rendering if Xwayland is not available.
+  </Note>
+</ParamField>
+
+### Allow Multiple Instances
+
+<ParamField path="--allowInstances" type="boolean" default="false">
+  Allows multiple launcher instances to run simultaneously.
+  
+  **Usage:**
+  ```bash
+  Nitrox.Launcher.exe --allowInstances true
+  ```
+  
+  <Note>
+  By default, the launcher prevents multiple instances and brings the existing window to the foreground.
+  </Note>
+</ParamField>
+
+### Instant Launch
+
+<ParamField path="instantlaunch" type="command">
+  Instantly launches a server with specified save and players without showing the launcher UI.
+  
+  **Usage:**
+  ```bash
+  Nitrox.Launcher.exe instantlaunch --save MySave --players Player1 Player2 Player3
+  ```
+  
+  **Parameters:**
+  - `--save` (required) - Name of the save to load
+  - `--players` (required) - One or more player names
+  
+  **Example:**
+  ```bash
+  # Launch with one player
+  ./Nitrox.Launcher instantlaunch --save "MyWorld" --players "Steve"
+  
+  # Launch with multiple players
+  ./Nitrox.Launcher instantlaunch --save "OceanBase" --players "Alice" "Bob" "Charlie"
+  ```
+  
+  <Warning>
+  The save name must exist in your saves folder. At least one player name is required.
+  </Warning>
+</ParamField>
+
+## Launcher Settings
+
+The launcher has persistent settings that can be configured through the Options menu.
+
+### Game Launch Arguments
+
+<ParamField path="LaunchArgs" type="string" default="-vrmode none">
+  Arguments passed to Subnautica when launching the game.
+  
+  **Default Value:**
+  ```
+  -vrmode none
+  ```
+  
+  **Common Arguments:**
+  - `-vrmode none` - Disables VR mode
+  - `-window` - Runs game in windowed mode
+  - `-screen-width 1920` - Sets window width
+  - `-screen-height 1080` - Sets window height
+  - `-popupwindow` - Borderless windowed mode
+  
+  **Example:**
+  ```bash
+  -vrmode none -popupwindow -screen-width 2560 -screen-height 1440
+  ```
+  
+  <Note>
+  These are Subnautica's native launch arguments, not Nitrox-specific.
+  </Note>
+</ParamField>
+
+### Visual Settings
+
+#### Light Mode
+
+<ParamField path="LightModeEnabled" type="boolean" default="false">
+  Enables light theme instead of the default dark theme.
+  
+  **Location:** Options → Appearance
+  
+  <Note>
+  The launcher defaults to dark mode. Light mode can be easier on the eyes in bright environments.
+  </Note>
+</ParamField>
+
+### Game Instance Settings
+
+#### Allow Multiple Game Instances
+
+<ParamField path="AllowMultipleGameInstances" type="boolean" default="false">
+  Allows multiple instances of Subnautica to run simultaneously.
+  
+  **Location:** Options → Advanced
+  
+  <Warning>
+  **Important:** Enabling this option will disable Steam's in-game overlay for Subnautica (including unofficial games). Disable this option to use Steam's overlay.
+  </Warning>
+</ParamField>
+
+#### Big Picture Mode
+
+<ParamField path="UseBigPictureMode" type="boolean" default="false">
+  Enables Steam Big Picture mode for game launch.
+  
+  **Location:** Options → Advanced
+  
+  <Note>
+  Cannot be enabled simultaneously with "Allow Multiple Game Instances".
+  </Note>
+</ParamField>
+
+## Configuration File Locations
+
+The launcher stores its configuration in platform-specific locations:
+
+<CodeGroup>
+```bash Windows
+%APPDATA%/Nitrox/launcher.cfg
+```
+
+```bash Linux
+~/.config/Nitrox/launcher.cfg
+```
+
+```bash macOS
+~/Library/Application Support/Nitrox/launcher.cfg
+```
+</CodeGroup>
+
+### Other Important Directories
+
+<Tabs>
+  <Tab title="Saves">
+    **Location:** `[AppData]/Nitrox/saves/`
+    
+    Contains all server save files and their configurations.
+  </Tab>
+  
+  <Tab title="Screenshots">
+    **Location:** `[AppData]/Nitrox/screenshots/`
+    
+    Stores in-game screenshots taken while playing on Nitrox servers.
+  </Tab>
+  
+  <Tab title="Logs">
+    **Location:** `[AppData]/Nitrox/logs/`
+    
+    Contains launcher and server log files for troubleshooting.
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+The launcher respects certain environment variables:
+
+### WAYLAND_DISPLAY
+
+<ParamField path="WAYLAND_DISPLAY" type="string">
+  Detected automatically on Linux systems.
+  
+  **Behavior:**
+  - If set and Xwayland is not available → Uses software rendering
+  - If set and Xwayland is available → Uses X11 with hardware acceleration
+  
+  <Note>
+  Wayland+GPU is not supported by the Avalonia UI framework used by the launcher.
+  </Note>
+</ParamField>
+
+## Advanced Launch Options
+
+### Custom Game Path
+
+The launcher allows you to specify a custom Subnautica installation path:
+
+<Steps>
+  <Step title="Open Options">
+    Click the Options/Settings button in the launcher.
+  </Step>
+  
+  <Step title="Select Game Directory">
+    Click "Set Game Path" and browse to your Subnautica installation.
+  </Step>
+  
+  <Step title="Verify Installation">
+    The launcher will verify that the directory contains a valid Subnautica installation.
+  </Step>
+</Steps>
+
+<Note>
+The launcher automatically detects Subnautica installations from Steam, Epic Games Store, and Microsoft Store.
+</Note>
+
+## Easter Eggs
+
+### April Fools
+
+On April 1st, the launcher automatically switches to Comic Sans font (if installed on your system).
+
+```csharp Source Code (App.axaml.cs:189)
+if (DateTime.Now is { Month: 4, Day: 1 })
+{
+    Style? windowStyle = new(x => x.OfType<Window>())
+    {
+        Setters = {
+            new Setter(TemplatedControl.FontFamilyProperty, 
+                      FontFamily.Parse("Comic Sans MS"))
+        }
+    };
+    Styles.Add(windowStyle);
+}
+```
+
+## Examples
+
+### Launch with Custom Rendering
+
+```bash Linux
+# Use software rendering (more compatible)
+./Nitrox.Launcher --rendering Software
+
+# Use OpenGL via EGL
+./Nitrox.Launcher --rendering EGL
+```
+
+### Instant Launch for Testing
+
+```bash
+# Quick launch for development/testing
+Nitrox.Launcher.exe instantlaunch --save "TestWorld" --players "DevPlayer1" "DevPlayer2"
+```
+
+### Multiple Instances
+
+```bash
+# Allow multiple launcher windows
+Nitrox.Launcher.exe --allowInstances true
+```
+
+### Combined Arguments
+
+```bash
+# Multiple arguments together
+./Nitrox.Launcher --rendering Software --allowInstances true
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Launcher won't start on Linux" icon="linux">
+    **Symptoms:** Black screen, crashes, or visual glitches
+    
+    **Solutions:**
+    - Try software rendering: `--rendering Software`
+    - Check if Xwayland is installed: `which Xwayland`
+    - Verify graphics drivers are up to date
+    - Check logs in `~/.config/Nitrox/logs/`
+  </Accordion>
+  
+  <Accordion title="Game won't launch" icon="gamepad">
+    **Symptoms:** Nothing happens when clicking Play
+    
+    **Solutions:**
+    - Verify Subnautica installation path in Options
+    - Check that you have proper file permissions
+    - Look for errors in the launcher logs
+    - Try resetting launch arguments to default (`-vrmode none`)
+  </Accordion>
+  
+  <Accordion title="Multiple instances not working" icon="copy">
+    **Symptoms:** Can't launch multiple game instances
+    
+    **Solutions:**
+    - Enable "Allow Multiple Game Instances" in Options
+    - Note: This disables Steam overlay
+    - Restart the launcher after changing this setting
+  </Accordion>
+  
+  <Accordion title="Permission errors on startup" icon="lock">
+    **Symptoms:** "Restart as admin" message appears
+    
+    **Solutions:**
+    - The launcher needs to set file permissions once
+    - Run as administrator/root one time
+    - This is only required on first setup
+    - Future launches won't need elevated permissions
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Command-Line Parser
+
+The launcher uses ConsoleAppFramework for argument parsing:
+
+```csharp Source (App.axaml.cs:69-85)
+ConsoleApp.ConsoleAppBuilder cliParser = ConsoleApp.Create();
+cliParser.Add("", (bool crashReport, 
+                   X11RenderingMode? rendering = null, 
+                   bool allowInstances = false) =>
+{
+    isCrashReport = crashReport;
+    preferredRenderingMode = rendering;
+    App.allowInstances = allowInstances;
+    // ...
+});
+cliParser.Add("instantlaunch", 
+              ([SaveName] string save, 
+               [MinLength(1)] params string[] players) =>
+{
+    InstantLaunch = new InstantLaunchData(save, players);
+});
+cliParser.Run(NitroxEnvironment.CommandLineArgs);
+```
+
+### Configuration Persistence
+
+Settings are stored using the `IKeyValueStore` interface, which persists data in a platform-appropriate location.
+
+<Note>
+Changes made in the Options menu are saved immediately and persist across launcher restarts.
+</Note>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="gear" href="/reference/server-config">
+    Configure your Nitrox server settings
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/quickstart">
+    Set up Nitrox for the first time
+  </Card>
+</CardGroup>

@@ -1,0 +1,526 @@
+---
+title: Contributing Guide
+description: How to contribute to Nitrox Unlocked development
+---
+
+Thank you for your interest in contributing to Nitrox Unlocked! This guide will help you get started with development, understand our standards, and submit your contributions.
+
+## Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="Development Tools" icon="screwdriver-wrench">
+    - Visual Studio 2022 or JetBrains Rider
+    - .NET 7 SDK or later
+    - Git for version control
+  </Card>
+  
+  <Card title="Game Requirements" icon="gamepad">
+    - Subnautica installed
+    - Knowledge of C# and Unity basics
+    - Familiarity with Harmony patching (helpful)
+  </Card>
+</CardGroup>
+
+### Development Setup
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/Papela/Nitrox-Cracked-Mod.git
+    cd Nitrox-Cracked-Mod
+    ```
+  </Step>
+  
+  <Step title="Open Solution">
+    Open `Nitrox.sln` in Visual Studio or Rider. The solution contains all projects:
+    - Nitrox.Launcher
+    - NitroxPatcher
+    - NitroxClient
+    - Nitrox.Server.Subnautica
+    - Nitrox.Model
+    - Nitrox.Model.Subnautica
+    - Nitrox.Test
+  </Step>
+  
+  <Step title="Configure Subnautica Path">
+    The build system will prompt you for your Subnautica installation path on first build. This is needed to reference the game's assemblies.
+  </Step>
+  
+  <Step title="Build the Solution">
+    ```bash
+    dotnet build Nitrox.sln
+    ```
+    
+    Or use your IDE's build function (Ctrl+Shift+B in Visual Studio).
+  </Step>
+  
+  <Step title="Run Nitrox Launcher">
+    Set `Nitrox.Launcher` as the startup project and run it. The launcher will help you configure and start the game with Nitrox.
+  </Step>
+</Steps>
+
+<Note>
+The first build may take a few minutes as it resolves NuGet packages and references Subnautica's assemblies.
+</Note>
+
+## Project Structure
+
+Understanding the codebase organization:
+
+```
+Nitrox-Cracked-Mod/
+├── Nitrox.Launcher/          # Desktop application (Avalonia UI)
+├── NitroxPatcher/            # Harmony patches and game injection
+│   ├── Patches/
+│   │   ├── Dynamic/          # Multiplayer-only patches
+│   │   └── Persistent/       # Always-active patches
+│   └── Main.cs               # Entry point
+├── NitroxClient/             # Client-side multiplayer logic
+│   ├── Communication/        # Networking layer
+│   ├── GameLogic/            # Client game systems
+│   └── MonoBehaviours/       # Unity components
+├── Nitrox.Server.Subnautica/ # Dedicated server
+│   └── Models/               # Server-side systems
+├── Nitrox.Model/             # Shared core library
+│   ├── Packets/              # Packet base classes
+│   └── DataStructures/       # Common data types
+├── Nitrox.Model.Subnautica/  # Subnautica-specific models
+│   └── Packets/              # Game-specific packets
+└── Nitrox.Test/              # Unit and integration tests
+```
+
+## Building From Source
+
+### Build Configurations
+
+- **Debug**: Includes debug symbols, extended timeouts, verbose logging
+- **Release**: Optimized for production use
+
+```bash
+# Debug build
+dotnet build -c Debug
+
+# Release build
+dotnet build -c Release
+```
+
+### Common Build Issues
+
+<AccordionGroup>
+  <Accordion title="Subnautica assemblies not found">
+    Ensure your Subnautica path is correctly configured. Check `Directory.Build.targets` for the path resolution logic.
+  </Accordion>
+  
+  <Accordion title="NuGet restore fails">
+    ```bash
+    dotnet restore --force
+    dotnet nuget locals all --clear
+    ```
+  </Accordion>
+  
+  <Accordion title="Type or namespace could not be found">
+    Clean and rebuild the entire solution:
+    ```bash
+    dotnet clean
+    dotnet build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Code Standards
+
+We follow specific coding standards to maintain code quality:
+
+### General Principles
+
+<CardGroup cols={2}>
+  <Card title="Clean & Minimal" icon="broom">
+    Write concise, readable code. Avoid unnecessary complexity or over-engineering.
+  </Card>
+  
+  <Card title="No AI Bloat" icon="robot">
+    If using AI for code generation, review and simplify before submitting. We prefer human-written, thoughtful code.
+  </Card>
+</CardGroup>
+
+### C# Style Guide
+
+```csharp
+// ✅ Good: Clear, concise, follows conventions
+public class PlayerMovementHandler
+{
+    private readonly IPacketSender packetSender;
+    
+    public PlayerMovementHandler(IPacketSender packetSender)
+    {
+        this.packetSender = packetSender;
+    }
+    
+    public void SendMovementUpdate(Vector3 position, Quaternion rotation)
+    {
+        packetSender.Send(new PlayerMovement(position, rotation));
+    }
+}
+
+// ❌ Bad: Over-commented, verbose
+public class PlayerMovementHandler
+{
+    // This is the packet sender that we use to send packets
+    private readonly IPacketSender packetSender;
+    
+    /// <summary>
+    /// Constructor that initializes the packet sender
+    /// </summary>
+    /// <param name="packetSender">The packet sender to use</param>
+    public PlayerMovementHandler(IPacketSender packetSender)
+    {
+        // Set the packet sender field to the provided value
+        this.packetSender = packetSender;
+    }
+    
+    // This method sends a movement update to the server
+    public void SendMovementUpdate(Vector3 position, Quaternion rotation)
+    {
+        // Create a new player movement packet
+        PlayerMovement packet = new PlayerMovement(position, rotation);
+        // Send the packet using the packet sender
+        packetSender.Send(packet);
+    }
+}
+```
+
+### Commenting Guidelines
+
+<Tabs>
+  <Tab title="Do">
+    ```csharp
+    /// <summary>
+    /// Prevents the Aurora explosion from triggering when a player is in creative mode,
+    /// as it would desync the timeline for other players still in survival mode.
+    /// </summary>
+    public static bool Prefix(AuroraExplosion __instance)
+    {
+        return !localPlayer.IsCreativeMode;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Don't">
+    ```csharp
+    /// <summary>
+    /// This method is a prefix patch for the AuroraExplosion class.
+    /// It checks if the local player is in creative mode.
+    /// If they are, it returns false to skip the original method.
+    /// </summary>
+    public static bool Prefix(AuroraExplosion __instance)
+    {
+        // Check if player is in creative mode
+        bool isCreative = localPlayer.IsCreativeMode;
+        // Return the opposite
+        return !isCreative;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+**Key principle**: *Explain WHY, not WHAT*. The code itself shows what it does.
+
+### Patch Documentation
+
+Harmony patches should have comments explaining the purpose:
+
+```csharp
+namespace NitroxPatcher.Patches.Dynamic;
+
+/// <summary>
+/// Synchronizes base piece deconstruction across all players.
+/// Uses transpiler to inject packet sending at precise points in the deconstruction flow.
+/// </summary>
+public sealed partial class BaseDeconstructable_Deconstruct_Patch : NitroxPatch, IDynamicPatch
+{
+    // Implementation...
+}
+```
+
+## Making Contributions
+
+### Finding Issues to Work On
+
+1. Check the [GitHub Issues](https://github.com/Papela/Nitrox-Cracked-Mod/issues)
+2. Look for issues labeled `good first issue` or `help wanted`
+3. Comment on the issue to indicate you're working on it
+4. Ask questions if anything is unclear
+
+### Creating a Pull Request
+
+<Steps>
+  <Step title="Create a Feature Branch">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+    
+    Use descriptive branch names:
+    - `feature/add-inventory-sync`
+    - `fix/base-deconstruction-crash`
+    - `refactor/packet-serialization`
+  </Step>
+  
+  <Step title="Make Your Changes">
+    Write clean, focused commits:
+    ```bash
+    git add .
+    git commit -m "Add inventory synchronization for storage containers"
+    ```
+    
+    Commit messages should be concise and descriptive.
+  </Step>
+  
+  <Step title="Test Your Changes">
+    - Build the solution without errors
+    - Test in-game (both single player and multiplayer if applicable)
+    - Verify no regressions in existing features
+    - Add unit tests for new functionality when possible
+  </Step>
+  
+  <Step title="Push and Create PR">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+    
+    Go to GitHub and create a Pull Request with:
+    - Clear title describing the change
+    - Brief description (not 50 paragraphs!)
+    - Reference any related issues
+  </Step>
+</Steps>
+
+### Pull Request Guidelines
+
+<Warning>
+Keep PR descriptions concise. We don't have resources to read 50 paragraphs explaining why you changed 5 lines of code. Only elaborate if the purpose isn't obvious.
+</Warning>
+
+**Good PR description**:
+
+```markdown
+## Summary
+Adds synchronization for storage container contents when items are added/removed.
+
+Fixes #123
+
+## Changes
+- Added StorageContainerSync packet
+- Patched ItemsContainer.AddItem and RemoveItem
+- Server broadcasts changes to other players
+
+## Testing
+Tested with multiple players adding/removing items from lockers simultaneously.
+```
+
+**Bad PR description** (too verbose):
+
+```markdown
+## Introduction
+I noticed that when I was playing with my friend, the storage containers...
+[47 more paragraphs explaining the entire history of the bug and your thought process]
+```
+
+## AI Usage Policy
+
+<Note>
+You're free to use AI tools to assist with code generation, but please review and refine the output before submitting.
+</Note>
+
+### Guidelines
+
+- **Review AI code carefully**: Nitrox interacts intimately with Subnautica's codebase, which AI models don't have access to
+- **Never upload Subnautica source code to AI**: The game's code is copyrighted and uploading it violates copyright law
+- **Simplify AI output**: Remove unnecessary verbosity, comments, and over-engineering
+- **Understand the code**: Don't submit code you don't understand
+
+### What NOT to do:
+
+```csharp
+// ❌ AI-generated code with excessive comments and unnecessary complexity
+
+/// <summary>
+/// This interface represents a factory that creates instances of player objects
+/// in the multiplayer environment. It provides a abstraction layer for player
+/// creation that allows for dependency injection and testability.
+/// </summary>
+public interface IPlayerFactory
+{
+    /// <summary>
+    /// Creates a new player instance with the specified parameters.
+    /// </summary>
+    /// <param name="id">The unique identifier for the player</param>
+    /// <param name="name">The display name of the player</param>
+    /// <returns>A new instance of the Player class</returns>
+    Player CreatePlayer(ushort id, string name);
+}
+
+// Just do this instead:
+public interface IPlayerFactory
+{
+    Player CreatePlayer(ushort id, string name);
+}
+```
+
+## Testing
+
+### Running Tests
+
+Nitrox includes a test project:
+
+```bash
+dotnet test Nitrox.Test/Nitrox.Test.csproj
+```
+
+### Writing Tests
+
+Add tests for new functionality:
+
+```csharp
+[TestClass]
+public class PacketSerializationTests
+{
+    [TestMethod]
+    public void ChatMessage_SerializesAndDeserializes()
+    {
+        // Arrange
+        var original = new ChatMessage(123, "Hello world");
+        
+        // Act
+        byte[] serialized = original.Serialize();
+        Packet deserialized = Packet.Deserialize(serialized);
+        
+        // Assert
+        Assert.IsInstanceOfType(deserialized, typeof(ChatMessage));
+        var chatMsg = (ChatMessage)deserialized;
+        Assert.AreEqual(123, chatMsg.PlayerId);
+        Assert.AreEqual("Hello world", chatMsg.Text);
+    }
+}
+```
+
+## Debugging
+
+### Debugging the Patcher
+
+1. Set `NitroxPatcher` as startup project
+2. In project properties, set:
+   - **Executable**: Path to Subnautica.exe
+   - **Arguments**: `--nitrox "path/to/nitrox/launcher"`
+3. Set breakpoints in your patch code
+4. Press F5 to debug
+
+### Debugging the Server
+
+1. Set `Nitrox.Server.Subnautica` as startup project
+2. Set breakpoints in server code
+3. Press F5 to start server in debug mode
+4. Connect with a client
+
+### Logging
+
+Use the `Log` class for debugging:
+
+```csharp
+Log.Debug("Detailed debug information");
+Log.Info("General information");
+Log.Warn("Warning message");
+Log.Error("Error occurred");
+Log.Error(exception, "Error with exception");
+```
+
+Logs are written to:
+- **Client**: Subnautica's log directory
+- **Server**: Server's working directory
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Discord Community" icon="discord" href="https://discord.gg/b8vE6zeWSy">
+    Join our Discord server for real-time help and discussion with other developers.
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/Papela/Nitrox-Cracked-Mod/issues">
+    Report bugs or request features through GitHub Issues.
+  </Card>
+</CardGroup>
+
+## Code Review Process
+
+When you submit a PR:
+
+1. **Automated Checks**: GitHub Actions will run builds and tests
+2. **Code Review**: Maintainers will review your code for:
+   - Code quality and style
+   - Functionality and correctness
+   - Performance implications
+   - Potential bugs or edge cases
+3. **Feedback**: You may receive comments requesting changes
+4. **Approval**: Once approved, your PR will be merged
+
+<Note>
+Be patient with the review process. Maintainers are volunteers and may take time to review PRs thoroughly.
+</Note>
+
+## Best Practices
+
+### Performance
+
+- Avoid allocating in hot paths (every frame)
+- Use object pooling for frequently created objects
+- Cache references instead of repeated GetComponent calls
+- Profile before optimizing (don't prematurely optimize)
+
+### Networking
+
+- Choose appropriate delivery methods for packets
+- Batch related updates when possible
+- Validate all input from clients on the server
+- Never trust client data for authoritative actions
+
+### Patching
+
+- Use dynamic patches for multiplayer-only features
+- Document why you're patching (not just what)
+- Test patches with game updates (they may break)
+- Prefer simple patches over complex transpilers
+
+## License
+
+Nitrox Unlocked is licensed under [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0). By contributing, you agree that your contributions will be licensed under the same terms.
+
+## Disclaimer
+
+<Warning>
+This project is a modified version of the original Nitrox mod. It is not affiliated with or supported by the official Nitrox team. Use at your own risk.
+</Warning>
+
+Official Nitrox support is not responsible for helping with this version. All support should be directed to this project's community channels.
+
+## Thank You!
+
+Your contributions help make Nitrox Unlocked better for everyone. Whether it's code, documentation, bug reports, or community support, every contribution matters.
+
+If you found this project helpful, please give it a star on GitHub! ⭐
+
+<CardGroup cols={3}>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Learn about the project structure
+  </Card>
+  
+  <Card title="Patching System" icon="code" href="/development/patching-system">
+    Understand Harmony patching
+  </Card>
+  
+  <Card title="Networking" icon="network-wired" href="/development/networking">
+    Explore the networking layer
+  </Card>
+</CardGroup>

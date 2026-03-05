@@ -1,0 +1,523 @@
+---
+title: Joining a Game
+description: Guide for players on how to connect to Nitrox Unlocked servers
+---
+
+## Overview
+
+This guide explains how to join multiplayer servers in Nitrox Unlocked, whether you're connecting to a friend's server, a LAN server, or a dedicated public server.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Required" icon="check">
+    - Nitrox Unlocked installed
+    - Subnautica (base game)
+    - Same Nitrox version as server
+    - Same Subnautica version as server
+  </Card>
+  
+  <Card title="Network Info Needed" icon="network-wired">
+    - Server IP address (for direct connect)
+    - Server port (default: 11000)
+    - Server password (if required)
+  </Card>
+</CardGroup>
+
+## Connection Methods
+
+There are three ways to connect to a server:
+
+### 1. LAN Discovery (Local Network)
+
+For servers on your local network:
+
+<Steps>
+  <Step title="Launch Nitrox">
+    Start the Nitrox Launcher and launch Subnautica with multiplayer enabled.
+  </Step>
+  
+  <Step title="Open Join Server Menu">
+    In the main menu, navigate to the multiplayer/join server section.
+  </Step>
+  
+  <Step title="Select from LAN Servers">
+    Available LAN servers should appear automatically in the server list.
+    
+    Source: `LANBroadcastClient.cs:38-50` - LAN discovery searches for servers via UDP broadcast
+  </Step>
+  
+  <Step title="Click to Connect">
+    Select the server and click "Join" or "Connect".
+  </Step>
+</Steps>
+
+<Note>
+  LAN discovery requires the server to have `LANDiscoveryEnabled=true` in its configuration.
+</Note>
+
+**How LAN Discovery Works:**
+
+The client broadcasts discovery requests on predefined ports. Servers with LAN discovery enabled respond with their connection information.
+
+Source: `LANBroadcastClient.cs:52-143`
+
+```csharp
+// Client searches for servers every 5 seconds
+while (!cancellationToken.IsCancellationRequested)
+{
+    NetDataWriter writer = new();
+    writer.Put(LANDiscoveryConstants.BROADCAST_REQUEST_STRING);
+    foreach (int port in LANDiscoveryConstants.BROADCAST_PORTS)
+    {
+        client.SendBroadcast(writer, port);
+    }
+    await Task.Delay(5000, cancellationToken);
+}
+```
+
+### 2. Direct IP Connection
+
+For internet servers or manual connection:
+
+<Steps>
+  <Step title="Launch Nitrox">
+    Start the Nitrox Launcher and launch Subnautica with multiplayer.
+  </Step>
+  
+  <Step title="Select Direct Connect">
+    Choose "Direct Connect" or "Add Server" option.
+  </Step>
+  
+  <Step title="Enter Server Details">
+    Input the server information:
+    - **Server Name:** Friendly name (your choice)
+    - **IP Address:** Server's IP
+    - **Port:** Server port (default: 11000)
+    
+    <CodeGroup>
+    ```text Local Host Example
+    Name: My Local Server
+    IP: 127.0.0.1
+    Port: 11000
+    ```
+    
+    ```text LAN Example
+    Name: Friend's Server
+    IP: 192.168.1.100
+    Port: 11000
+    ```
+    
+    ```text Internet Example
+    Name: Public Server
+    IP: 203.0.113.42
+    Port: 11000
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Save and Connect">
+    Save the server entry and click connect.
+  </Step>
+</Steps>
+
+Source: `ServerList.cs:92-156` - Server entries are stored in format: `Name|Address|Port`
+
+### 3. Saved Server List
+
+Once you've connected to a server, it's saved for easy reconnection:
+
+<Steps>
+  <Step title="Open Server List">
+    In the multiplayer menu, view your saved servers.
+  </Step>
+  
+  <Step title="Select Server">
+    Choose from your previously connected servers.
+  </Step>
+  
+  <Step title="Connect">
+    Click connect to join.
+  </Step>
+</Steps>
+
+**Server List Location:**
+
+<CodeGroup>
+```bash Windows
+%AppData%\Nitrox\servers
+```
+
+```bash Linux/macOS
+~/.config/Nitrox/servers
+```
+</CodeGroup>
+
+Source: `ServerList.cs:11,27` - Default port is 11000
+
+```csharp
+public const int DEFAULT_PORT = 11000;
+public static string DefaultFile => Path.Combine(NitroxUser.AppDataPath, SERVERS_FILE_NAME);
+```
+
+## Connection Process
+
+Understanding what happens when you connect:
+
+<Steps>
+  <Step title="Client Starts Connection">
+    The client attempts to connect to the server IP and port via UDP.
+    
+    Source: `Disconnected.cs:52-63`
+  </Step>
+  
+  <Step title="Version Check">
+    Server and client verify they're running compatible Nitrox versions.
+    
+    Source: `MultiplayerSessionManager.cs:59-84`
+    
+    ```csharp
+switch (nitroxVersion.CompareTo(SessionPolicy.NitroxVersionAllowed))
+{
+    case -1:
+        Log.Error($"Client is out of date. Server: {ServerVersion}, Client: {localVersion}");
+        CurrentState.Disconnect(this);
+        return;
+    case 1:
+        Log.Error($"Server is out of date...");
+        CurrentState.Disconnect(this);
+        return;
+}
+```
+  </Step>
+  
+  <Step title="Session Policy Exchange">
+    Server sends session policy including:
+    - Console disable settings
+    - Server rules
+    - Authentication requirements
+    
+    Source: `MultiplayerSessionManager.cs:59-84`
+  </Step>
+  
+  <Step title="Player Authentication">
+    You provide:
+    - Player name
+    - Server password (if required)
+    - Color preferences
+    
+    Source: `MultiplayerSessionManager.cs:86-91`
+  </Step>
+  
+  <Step title="Session Reservation">
+    Server reserves a slot for you and sends reservation confirmation.
+    
+    Source: `MultiplayerSessionManager.cs:93-97`
+  </Step>
+  
+  <Step title="Initial World Sync">
+    The server sends world data:
+    - World state
+    - Other players' positions
+    - Built structures
+    - Game time
+    
+    This can take time depending on world size and connection speed.
+  </Step>
+  
+  <Step title="Join Complete">
+    You spawn into the multiplayer world!
+    
+    Source: `MultiplayerSessionManager.cs:99-102`
+  </Step>
+</Steps>
+
+## Authentication & Permissions
+
+### Player Name Selection
+
+When connecting, you'll choose your player name:
+- Used for identification in-game
+- Shown in server logs
+- Persists across sessions
+
+### Server Password
+
+If the server has a password:
+
+```cfg
+# Server configuration
+ServerPassword=MyPassword123
+```
+
+You must enter the correct password to join.
+
+### Permission Levels
+
+Servers can have different permission levels:
+
+Source: `Perms.cs:5-27`
+
+```csharp
+public enum Perms : byte
+{
+    NONE,        // No permissions
+    PLAYER,      // Default - basic commands, no cheats
+    MODERATOR,   // Manage players, use vanilla cheats
+    ADMIN,       // Full server administration
+    CONSOLE      // All permissions (console only)
+}
+```
+
+**Default Permission:**
+- New players get `PLAYER` permission by default
+- Can be changed in server config: `DefaultPlayerPerm=PLAYER`
+
+**Localhost Exception:**
+- Players connecting from `127.0.0.1` get admin by default
+- Controlled by: `LocalhostIsAdmin=true`
+
+Source: `SubnauticaServerConfig.cs:104-105`
+
+### Getting Admin Access
+
+To get admin permissions on a server:
+
+<Tabs>
+  <Tab title="In-Game Console">
+    If you have the admin password:
+    
+    ```bash
+    # Open console (usually F3 or ~)
+    admin <password>
+    ```
+  </Tab>
+  
+  <Tab title="Server-Side Grant">
+    Server admin can promote you:
+    
+    ```bash
+    # In server console
+    op <playername>
+    # or
+    promote <playername> <PLAYER|MODERATOR|ADMIN>
+    ```
+  </Tab>
+  
+  <Tab title="Localhost Auto-Admin">
+    If running client on same machine as server:
+    
+    - Connect using `127.0.0.1`
+    - Automatically granted admin (if `LocalhostIsAdmin=true`)
+  </Tab>
+</Tabs>
+
+## Troubleshooting Connection Issues
+
+<AccordionGroup>
+  <Accordion title="Version mismatch error">
+    **Error:** "Client is out of date" or "Server is out of date"
+    
+    **Solution:**
+    - Ensure you and the server are using the **same** Nitrox version
+    - Update Nitrox client or ask server admin to update
+    - Verify Subnautica game version also matches
+  </Accordion>
+  
+  <Accordion title="Connection timeout">
+    **Symptoms:** "Connecting..." then timeout or failure.
+    
+    **Solutions:**
+    1. **Verify server is online**
+       - Ask server admin to confirm server is running
+       
+    2. **Check IP and port**
+       - Ensure you have the correct IP address
+       - Verify port number (default: 11000)
+       - Try pinging the server: `ping <server_ip>`
+       
+    3. **Network issues**
+       - Server may have port forwarding misconfigured
+       - Your firewall may be blocking outbound connections
+       - ISP may be blocking UDP traffic
+  </Accordion>
+  
+  <Accordion title="Wrong password">
+    **Error:** Authentication failed or access denied.
+    
+    **Solution:**
+    - Double-check the password (case-sensitive)
+    - Ensure you're using the server password, not admin password
+    - Ask server admin to verify current password
+  </Accordion>
+  
+  <Accordion title="Stuck on 'Loading world' screen">
+    **Symptoms:** Connection succeeds but world never finishes loading.
+    
+    **Possible Causes:**
+    - Large world with many entities
+    - Slow internet connection
+    - Server's `InitialSyncTimeout` too short
+    
+    **Solutions:**
+    - Wait longer (can take 2-5 minutes for large worlds)
+    - Ask server admin to increase `InitialSyncTimeout`:
+      ```cfg
+      InitialSyncTimeout=300000  # 5 minutes
+      ```
+    - Check your network connection quality
+  </Accordion>
+  
+  <Accordion title="Server not appearing in LAN list">
+    **Solutions:**
+    1. **Verify LAN discovery is enabled** on server:
+       ```cfg
+       LANDiscoveryEnabled=true
+       ```
+       
+    2. **Use direct IP connection instead**
+       - Even on LAN, you can manually enter the server IP
+       
+    3. **Check network**
+       - Ensure you're on the same subnet
+       - Check firewall isn't blocking broadcast packets
+  </Accordion>
+  
+  <Accordion title="Disconnected during gameplay">
+    **Possible Causes:**
+    - Network instability
+    - Server crash
+    - Server kicked/banned you
+    - Excessive lag/timeout
+    
+    **Solutions:**
+    - Check your internet connection
+    - Verify server is still running
+    - Check server logs for kick/ban messages
+    - Reduce network load (close downloads, streaming, etc.)
+  </Accordion>
+</AccordionGroup>
+
+## Finding Servers
+
+### Public Server Lists
+
+<Note>
+  Nitrox doesn't have an official public server browser. Servers are typically found through community channels.
+</Note>
+
+**Where to find servers:**
+- Nitrox Discord community
+- Subnautica multiplayer forums  
+- Reddit communities
+- Steam discussions
+- Friend invites
+
+### Hosting Your Own
+
+Want to create your own server for friends?
+
+<Card title="Host a Server" icon="server" href="/guides/hosting-server">
+  Learn how to set up and run your own Nitrox server
+</Card>
+
+## Connection Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Before Connecting" icon="clipboard-check">
+    - Verify Nitrox version matches server
+    - Check you have server IP and port
+    - Prepare password if needed
+    - Close bandwidth-heavy apps
+  </Card>
+  
+  <Card title="During Connection" icon="signal">
+    - Wait patiently during world sync
+    - Don't spam reconnect if it fails
+    - Monitor your network connection
+    - Check game logs if issues occur
+  </Card>
+  
+  <Card title="Performance Tips" icon="gauge">
+    - Use wired connection over WiFi
+    - Close unnecessary background apps
+    - Update graphics drivers
+    - Lower in-game settings if needed
+  </Card>
+  
+  <Card title="Etiquette" icon="handshake">
+    - Respect server rules
+    - Don't grief other players' builds
+    - Communicate with teammates
+    - Report bugs to server admin
+  </Card>
+</CardGroup>
+
+## Understanding Connection States
+
+The client goes through several connection states:
+
+Source: `MultiplayerSessionConnectionStage.cs` and `MultiplayerSessionManager.cs:122-139`
+
+1. **DISCONNECTED** - Not connected
+2. **ESTABLISHING_SESSION_POLICY** - Negotiating rules
+3. **AWAITING_SESSION_RESERVATION** - Requesting slot
+4. **SESSION_RESERVED** - Slot confirmed
+5. **JOINING_SESSION** - Loading world
+6. **JOINED** - In game!
+
+```csharp
+public void UpdateConnectionState(IMultiplayerSessionConnectionState sessionConnectionState)
+{
+    Log.Debug($"Updating session stage from '{fromStage}' to '{sessionConnectionState.CurrentStage}'");
+    CurrentState = sessionConnectionState;
+    ConnectionStateChanged?.Invoke(CurrentState);
+}
+```
+
+## Client Log Files
+
+If you encounter issues, check client logs:
+
+<CodeGroup>
+```bash Windows
+%AppData%\Nitrox\logs\game-[PlayerName]-[Date].log
+```
+
+```bash Linux/macOS
+~/.config/Nitrox/logs/game-[PlayerName]-[Date].log
+```
+</CodeGroup>
+
+Source: `Log.cs:91,162-171`
+
+Logs include:
+- Connection attempts
+- Version checks
+- Authentication status
+- Error messages
+- Network events
+
+## Quick Connection Reference
+
+| Connection Type | IP Format | Port | Discovery |
+|----------------|-----------|------|----------|
+| Localhost | `127.0.0.1` | 11000 | Manual |
+| LAN | `192.168.x.x` | 11000 | Auto/Manual |
+| Internet | Public IP | 11000 | Manual |
+| Custom Port | Any valid IP | Custom | Manual |
+
+<Tip>
+  When in doubt, use direct IP connection. It's the most reliable method and works for all server types.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Solve connection and gameplay issues
+  </Card>
+  <Card title="Host Your Own Server" icon="server" href="/guides/hosting-server">
+    Learn to set up a server for friends
+  </Card>
+</CardGroup>

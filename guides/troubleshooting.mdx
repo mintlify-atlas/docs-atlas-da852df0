@@ -1,0 +1,577 @@
+---
+title: Troubleshooting
+description: Solutions to common Nitrox Unlocked problems
+---
+
+## Common Issues
+
+This guide covers the most frequent problems and their solutions.
+
+## Connection Problems
+
+<AccordionGroup>
+  <Accordion title="Can't connect to server - Connection timeout">
+    **Symptoms:** Client shows "Connecting..." then times out or shows connection failed.
+    
+    **Common Causes:**
+    
+    1. **Port forwarding not configured**
+       - Verify UDP port is forwarded on your router
+       - Default port: 11000
+       - Check both router and server firewall
+       
+    2. **Wrong IP address**
+       - LAN players should use local IP (192.168.x.x)
+       - Internet players need your public IP
+       - Verify IP hasn't changed (dynamic IP)
+       
+    3. **Server not running**
+       - Confirm server is actually started
+       - Check server console for errors
+       
+    4. **Firewall blocking connection**
+       ```bash
+       # Windows: Allow UDP port
+       netsh advfirewall firewall add rule name="Nitrox" dir=in action=allow protocol=UDP localport=11000
+       
+       # Linux: ufw
+       sudo ufw allow 11000/udp
+       ```
+    
+    **Solution:**
+    <Steps>
+      <Step title="Verify server is running">
+        Check the server console shows: `Server is listening on port 11000 UDP`
+      </Step>
+      <Step title="Test local connection first">
+        Try connecting from the same machine using `127.0.0.1` or `localhost`
+      </Step>
+      <Step title="Check port forwarding">
+        Use an online port checker tool to verify your port is open
+      </Step>
+      <Step title="Review firewall rules">
+        Ensure both Windows/Linux firewall and router allow UDP traffic
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="LAN discovery not finding server">
+    **Symptoms:** Server doesn't appear in LAN server list.
+    
+    **Causes:**
+    - `LANDiscoveryEnabled=false` in server config
+    - Client and server on different subnets
+    - Firewall blocking broadcast packets
+    
+    **Solution:**
+    ```cfg
+    # In server.cfg
+    LANDiscoveryEnabled=true
+    ```
+    
+    Alternatively, use direct IP connection instead of relying on discovery.
+    
+    Source: `LANBroadcastClient.cs:99-109` - LAN discovery uses UDP broadcast on predefined ports.
+  </Accordion>
+
+  <Accordion title="Client connection failed without reason">
+    **Error:** `The client failed to connect without providing a reason why`
+    
+    Source: `Disconnected.cs:60`
+    
+    **Possible Causes:**
+    - Network unreachable
+    - Port completely blocked
+    - Server crashed during connection
+    
+    **Solution:**
+    - Check server logs for errors at time of connection attempt
+    - Verify network connectivity with `ping`
+    - Test with a different client/network
+    - Check server CPU/memory usage
+  </Accordion>
+</AccordionGroup>
+
+## Version Mismatch
+
+<AccordionGroup>
+  <Accordion title="Client version out of date">
+    **Error:** `Client is out of date. Server: X.X, Client: Y.Y`
+    
+    Source: `MultiplayerSessionManager.cs:68-72`
+    
+    ```csharp
+case -1:
+    Log.Error($"Client is out of date. Server: {SessionPolicy.NitroxVersionAllowed}, Client: {localVersion}");
+    Log.InGame(Language.main.Get("Nitrox_OutOfDateClient")
+```
+    
+    **Solution:**
+    - Update your Nitrox client to match the server version
+    - Download from the official Nitrox releases
+    - Ensure launcher is up to date
+  </Accordion>
+
+  <Accordion title="Server version out of date">
+    **Error:** `Server is out of date. Server: X.X, Client: Y.Y`
+    
+    Source: `MultiplayerSessionManager.cs:74-79`
+    
+    **Solution:**
+    - Server host needs to update Nitrox
+    - All players should use the same Nitrox version
+    - Check release notes for breaking changes
+  </Accordion>
+
+  <Accordion title="Game version mismatch">
+    **Symptoms:** Server won't start or clients can't sync.
+    
+    **Solution:**
+    - Ensure Subnautica game is updated to latest version
+    - Verify Steam/Epic didn't auto-update one but not the other
+    - Both server and all clients need identical Subnautica versions
+  </Accordion>
+</AccordionGroup>
+
+## Server Startup Issues
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    **Error:** `Port 11000 UDP is already in use`
+    
+    Source: `Program.cs:425-484` - Server waits 30 seconds for port to become available
+    
+    **Solution:**
+    
+    1. **Find what's using the port:**
+       <CodeGroup>
+       ```bash Windows
+       netstat -ano | findstr :11000
+       # Note the PID, then:
+       tasklist | findstr <PID>
+       ```
+       
+       ```bash Linux/macOS
+       lsof -i :11000
+       # or
+       netstat -tulpn | grep 11000
+       ```
+       </CodeGroup>
+    
+    2. **Close the other Nitrox instance** or other application
+    
+    3. **Change the server port:**
+       ```cfg
+       # In server.cfg
+       ServerPort=11001
+       ```
+       
+    <Warning>
+      If you change the port, update your port forwarding rules and tell players the new port!
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Could not find Subnautica installation">
+    **Error:** `DirectoryNotFoundException: Could not find Subnautica installation`
+    
+    Source: `Program.cs:82-85`
+    
+    **Solution:**
+    
+    <Steps>
+      <Step title="Verify Subnautica is installed">
+        Check that Subnautica is installed via Steam, Epic, or other platform.
+      </Step>
+      
+      <Step title="Set game path in launcher">
+        - Open Nitrox Launcher
+        - Navigate to settings
+        - Manually set Subnautica installation path
+      </Step>
+      
+      <Step title="Check installation integrity">
+        Verify game files through Steam/Epic if installation is corrupted.
+      </Step>
+    </Steps>
+    
+    **Common Installation Paths:**
+    <CodeGroup>
+    ```bash Steam (Windows)
+C:\Program Files (x86)\Steam\steamapps\common\Subnautica
+```
+
+```bash Steam (Linux)
+~/.steam/steam/steamapps/common/Subnautica
+```
+
+```bash Epic Games
+C:\Program Files\Epic Games\Subnautica
+```
+    </CodeGroup>
+  </Accordion>
+
+  <Accordion title="Server starts but immediately crashes">
+    **Solution:**
+    
+    1. **Check log files:**
+       <CodeGroup>
+       ```bash Windows
+       %AppData%\Nitrox\logs\
+       ```
+       
+       ```bash Linux/macOS
+       ~/.config/Nitrox/logs/
+       ```
+       </CodeGroup>
+       
+    2. **Look for error messages** in latest log file
+    
+    3. **Common causes:**
+       - Corrupted save file
+       - Missing .NET runtime
+       - Insufficient permissions
+       - Out of memory
+       
+    4. **Try with a fresh world:**
+       ```bash
+       # Start with new save name
+       ./Nitrox.Server.Subnautica --save "TestWorld"
+       ```
+  </Accordion>
+
+  <Accordion title="Entity cache loading takes forever">
+    **Symptoms:** Server stuck on "Starting to load all batches up front"
+    
+    Source: `Server.cs:203-217` - Loads all 504,732 entities
+    
+    **This is expected behavior when:**
+    ```cfg
+    CreateFullEntityCache=true
+    ```
+    
+    **Solution:**
+    - Be patient - can take 5-15 minutes on first run
+    - Only needs to run once (cached for future starts)
+    - Disable if you don't need it:
+      ```cfg
+      CreateFullEntityCache=false
+      ```
+    
+    <Note>
+      After initial cache load, server saves entities and won't need to reload on subsequent starts.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+## Gameplay Issues
+
+<AccordionGroup>
+  <Accordion title="Player stuck on initial sync / world loading">
+    **Symptoms:** Client shows loading screen indefinitely when joining.
+    
+    **Causes:**
+    - `InitialSyncTimeout` too low for world size
+    - Slow internet connection
+    - Large world with many entities
+    
+    **Solution:**
+    ```cfg
+    # Increase timeout (default 120000ms = 2 minutes)
+    InitialSyncTimeout=300000  # 5 minutes
+    ```
+    
+    Source: `SubnauticaServerConfig.cs:74-83`
+  </Accordion>
+
+  <Accordion title="Players can't see each other's buildings">
+    **Causes:**
+    - Building desync
+    - `SafeBuilding=true` rejecting builds
+    - Network lag
+    
+    **Solution:**
+    - Try rebuilding the structure
+    - Check `SafeBuilding` setting:
+      ```cfg
+      SafeBuilding=true  # Stricter, prevents glitches
+      # or
+      SafeBuilding=false  # More permissive
+      ```
+    - Restart both client and server if persists
+    
+    Source: `SubnauticaServerConfig.cs:123-124`
+  </Accordion>
+
+  <Accordion title="Inventory items disappearing">
+    **Possible Causes:**
+    - Death without `KeepInventoryOnDeath` enabled
+    - Network desync
+    - Save/load timing
+    
+    **Prevention:**
+    ```cfg
+    # Prevent item loss on death
+    KeepInventoryOnDeath=true
+    
+    # More frequent saves
+    SaveInterval=60000  # 1 minute
+    ```
+  </Accordion>
+
+  <Accordion title="PvP not working / players can't damage each other">
+    **Check configuration:**
+    ```cfg
+    PvPEnabled=true
+    ```
+    
+    Restart server after changing this setting.
+    
+    Source: `SubnauticaServerConfig.cs:129-130`
+  </Accordion>
+</AccordionGroup>
+
+## Save & Data Issues
+
+<AccordionGroup>
+  <Accordion title="Save file corrupted">
+    **Symptoms:** Server won't load world, crashes on startup.
+    
+    **Solution:**
+    
+    <Steps>
+      <Step title="Restore from backup">
+        Navigate to save folder and look for backup files:
+        ```bash
+        %AppData%\Nitrox\saves\<WorldName>\backups\
+        ```
+      </Step>
+      
+      <Step title="Copy backup to main folder">
+        Replace corrupted files with latest backup versions.
+      </Step>
+      
+      <Step title="Verify MaxBackups is set">
+        ```cfg
+        MaxBackups=10  # Keep 10 backups
+        DisableAutoBackup=false
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Auto-save not working">
+    **Check configuration:**
+    ```cfg
+    DisableAutoSave=false
+    SaveInterval=120000  # Must be >= 1000
+    ```
+    
+    **Verify in server console:**
+    - Should see periodic "Saving world..." messages
+    - Check startup message shows: `Autosave: ENABLED (2 min)`
+    
+    Source: `Server.cs:230` - Server logs autosave status on startup
+  </Accordion>
+
+  <Accordion title="Can't find save files">
+    **Save Location:**
+    <CodeGroup>
+    ```bash Windows
+%AppData%\Nitrox\saves\
+```
+
+```bash Linux/macOS
+~/.config/Nitrox/saves/
+```
+
+```bash Wine (Linux)
+~/.config/Nitrox/saves/
+```
+    </CodeGroup>
+    
+    **List all saves programmatically:**
+    Server automatically scans this directory on startup (Source: `Server.cs:348-378`)
+  </Accordion>
+</AccordionGroup>
+
+## Performance Issues
+
+<AccordionGroup>
+  <Accordion title="Server using too much CPU/RAM">
+    **Solutions:**
+    
+    - **Reduce save frequency:**
+      ```cfg
+      SaveInterval=300000  # 5 minutes instead of 2
+      ```
+    
+    - **Limit max connections:**
+      ```cfg
+      MaxConnections=25  # Lower if needed
+      ```
+    
+    - **Disable full entity cache:**
+      ```cfg
+      CreateFullEntityCache=false
+      ```
+    
+    - **Clean up old world saves** to free disk space
+  </Accordion>
+
+  <Accordion title="High latency / lag for players">
+    **Server-side:**
+    - Check server CPU/RAM usage
+    - Reduce save frequency if constant stutters
+    - Ensure server has adequate bandwidth
+    
+    **Network:**
+    - Test ping to server: `ping <server_ip>`
+    - Check for packet loss
+    - Ensure no other bandwidth-heavy applications
+    
+    **Client-side:**
+    - Verify client PC meets Subnautica requirements
+    - Update graphics drivers
+    - Lower in-game graphics settings
+  </Accordion>
+</AccordionGroup>
+
+## Log Files & Debugging
+
+### Finding Log Files
+
+<CodeGroup>
+```bash Server Logs (Windows)
+%AppData%\Nitrox\logs\server-[SaveName]-[Date].log
+```
+
+```bash Server Logs (Linux/macOS)
+~/.config/Nitrox/logs/server-[SaveName]-[Date].log
+```
+
+```bash Client Logs (Windows)
+%AppData%\Nitrox\logs\game-[PlayerName]-[Date].log
+```
+
+```bash Launcher Logs (Windows)
+%AppData%\Nitrox\logs\launcher-[Date].log
+```
+</CodeGroup>
+
+Source: `Log.cs:91` - Log directory definition
+
+```csharp
+public static string LogDirectory { get; } = 
+    Path.GetFullPath(Path.Combine(NitroxUser.AppDataPath ?? "", "logs"));
+```
+
+### Opening Log Folder on Crash
+
+When server crashes, you'll see:
+```
+Press L to open log folder before closing. Press any other key to close . . .
+```
+
+Source: `Program.cs:498-509`
+
+### Understanding Log Messages
+
+**Common log patterns:**
+
+```log
+# Normal startup
+[10:30:45.123] [INF] Starting Nitrox Server V1.8.0.0 for Subnautica
+[10:30:46.456] [INF] Server started (1.3s)
+[10:30:46.457] [INF] Server is listening on port 11000 UDP
+
+# Player connection
+[10:35:12.789] [INF] Player 'JohnDoe' connected from 192.168.1.100
+
+# Errors to watch for
+[10:40:00.000] [ERR] Port 11000 UDP is already in use
+[10:40:00.001] [ERR] Could not find Subnautica installation
+```
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Check Documentation" icon="book">
+    Review configuration and hosting guides for detailed explanations.
+  </Card>
+  
+  <Card title="Gather Information" icon="clipboard">
+    Before asking for help, collect:
+    - Log files
+    - Server configuration
+    - Nitrox version
+    - Subnautica version
+    - Steps to reproduce
+  </Card>
+  
+  <Card title="Community Support" icon="discord">
+    Join the Nitrox community:
+    - Discord server
+    - GitHub issues
+    - Steam discussions
+  </Card>
+  
+  <Card title="Known Issues" icon="github">
+    Check the Nitrox GitHub repository for:
+    - Open issues
+    - Bug reports
+    - Feature requests
+  </Card>
+</CardGroup>
+
+## Preventive Maintenance
+
+<Steps>
+  <Step title="Regular Backups">
+    ```cfg
+    MaxBackups=10
+    DisableAutoBackup=false
+    ```
+    
+    Consider additional manual backups of important saves.
+  </Step>
+  
+  <Step title="Monitor Logs">
+    Periodically check log files for warnings or errors.
+  </Step>
+  
+  <Step title="Keep Updated">
+    - Update Nitrox when new versions release
+    - Keep Subnautica updated
+    - Update server OS and .NET runtime
+  </Step>
+  
+  <Step title="Test Configuration Changes">
+    Before changing production server config:
+    - Test on a separate world save
+    - Backup before major changes
+    - Document what you changed
+  </Step>
+</Steps>
+
+## Quick Reference: Common Error Solutions
+
+| Error | Quick Fix |
+|-------|----------|
+| Port in use | Change `ServerPort` or close conflicting app |
+| Can't find Subnautica | Set game path in launcher settings |
+| Version mismatch | Update client or server to match versions |
+| Connection timeout | Check port forwarding and firewall |
+| LAN not discovering | Set `LANDiscoveryEnabled=true` |
+| Slow initial sync | Increase `InitialSyncTimeout` |
+| Save corruption | Restore from backup in saves folder |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Fine-tune your server settings
+  </Card>
+  <Card title="Hosting Guide" icon="server" href="/guides/hosting-server">
+    Learn more about server management
+  </Card>
+</CardGroup>

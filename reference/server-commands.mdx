@@ -1,0 +1,628 @@
+---
+title: Server Commands
+description: Complete reference for Nitrox server console commands
+icon: terminal
+---
+
+Server commands can be executed from the server console or by players in-game using the chat with a `/` prefix (e.g., `/help`).
+
+## Permission Levels
+
+Commands require different permission levels:
+
+- **PLAYER** - Available to all connected players
+- **MODERATOR** - Available to moderators and admins
+- **ADMIN** - Available to admins only
+- **CONSOLE** - Server console has all permissions
+
+<Note>
+Some commands cannot be used from the console and require a player to execute them.
+</Note>
+
+## Player Commands
+
+These commands are available to all players.
+
+### help
+
+<ParamField path="help" type="command">
+  Displays the list of available commands or detailed help for a specific command.
+  
+  **Aliases:** `?`
+  
+  **Usage:**
+  ```bash
+  help [command]
+  ```
+  
+  **Parameters:**
+  - `command` (optional) - Command to see detailed help information for
+  
+  **Example:**
+  ```bash
+  help
+  help kick
+  ```
+</ParamField>
+
+### list
+
+<ParamField path="list" type="command">
+  Shows all currently connected players and the current player count.
+  
+  **Usage:**
+  ```bash
+  list
+  ```
+  
+  **Example Output:**
+  ```
+  List of players (3/100):
+  Player1, Player2, Player3
+  ```
+</ParamField>
+
+### login
+
+<ParamField path="login" type="command">
+  Log in as admin using the server's admin password.
+  
+  **Usage:**
+  ```bash
+  login <password>
+  ```
+  
+  **Parameters:**
+  - `password` (required) - The server's admin password
+  
+  <Note>This command cannot be used from the console.</Note>
+</ParamField>
+
+### whisper
+
+<ParamField path="whisper" type="command">
+  Sends a private message to a specific player.
+  
+  **Aliases:** `w`, `msg`, `m`
+  
+  **Usage:**
+  ```bash
+  whisper <player> <message>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - The player's name to message
+  - `message` (required) - The message to send
+  
+  **Example:**
+  ```bash
+  /whisper Player1 Hey, want to explore together?
+  /w Player1 Found a cool base location!
+  ```
+</ParamField>
+
+### whois
+
+<ParamField path="whois" type="command">
+  Shows detailed information about a player.
+  
+  **Usage:**
+  ```bash
+  whois <player>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - The player's name
+  
+  **Example Output:**
+  ```
+  ==== Player1 ====
+  ID: abc123
+  Role: PLAYER
+  Position: 100.5, -50.2, 200.8
+  Oxygen: 45/45
+  Food: 50.5
+  Water: 90.5
+  Infection: 0.1
+  ```
+</ParamField>
+
+## Moderator Commands
+
+These commands require moderator or admin permissions.
+
+### broadcast
+
+<ParamField path="broadcast" type="command">
+  Broadcasts a message to all players on the server.
+  
+  **Aliases:** `say`
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  broadcast <message>
+  ```
+  
+  **Parameters:**
+  - `message` (required) - The message to broadcast
+  
+  **Example:**
+  ```bash
+  broadcast Server restart in 10 minutes!
+  say Welcome to our server!
+  ```
+</ParamField>
+
+### kick
+
+<ParamField path="kick" type="command">
+  Kicks a player from the server.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  kick <player> [reason]
+  ```
+  
+  **Parameters:**
+  - `player` (required) - Name of the player to kick
+  - `reason` (optional) - Reason for kicking the player
+  
+  **Example:**
+  ```bash
+  kick Player1
+  kick Player1 Griefing other players' bases
+  ```
+  
+  <Warning>You cannot kick yourself or players with higher permissions than you.</Warning>
+</ParamField>
+
+### mute
+
+<ParamField path="mute" type="command">
+  Prevents a player from sending chat messages.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  mute <player>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - Player to mute
+  
+  **Example:**
+  ```bash
+  mute Player1
+  ```
+  
+  <Note>You cannot mute yourself or players with higher permissions.</Note>
+</ParamField>
+
+### unmute
+
+<ParamField path="unmute" type="command">
+  Removes a mute from a player.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  unmute <player>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - Player to unmute
+</ParamField>
+
+### save
+
+<ParamField path="save" type="command">
+  Manually saves the current world state.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  save
+  ```
+</ParamField>
+
+### summary
+
+<ParamField path="summary" type="command">
+  Shows persisted world data and server statistics.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  summary
+  ```
+</ParamField>
+
+### teleport
+
+<ParamField path="teleport" type="command">
+  Teleports you to specific coordinates.
+  
+  **Aliases:** `tp`
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  teleport <x> <y> <z>
+  ```
+  
+  **Parameters:**
+  - `x` (required) - X coordinate
+  - `y` (required) - Y coordinate
+  - `z` (required) - Z coordinate
+  
+  **Example:**
+  ```bash
+  teleport 100 -50 200
+  tp 0 0 0
+  ```
+  
+  <Note>This command cannot be used from the console.</Note>
+</ParamField>
+
+### time
+
+<ParamField path="time" type="command">
+  Changes the in-game time to day, night, or skips time forward.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  time [day/night]
+  ```
+  
+  **Parameters:**
+  - `day/night` (optional) - Time to change to. If omitted, skips time forward
+  
+  **Example:**
+  ```bash
+  time day
+  time night
+  time
+  ```
+</ParamField>
+
+### warp
+
+<ParamField path="warp" type="command">
+  Teleports players to each other.
+  
+  **Permission:** MODERATOR
+  
+  **Usage:**
+  ```bash
+  warp <player1> [player2]
+  ```
+  
+  **Parameters:**
+  - `player1` (required) - Player to teleport (or destination if player2 is specified)
+  - `player2` (optional) - Destination player
+  
+  **Examples:**
+  ```bash
+  # Teleports you to Player1
+  warp Player1
+  
+  # Teleports Player1 to Player2 (console or admin)
+  warp Player1 Player2
+  ```
+</ParamField>
+
+## Admin Commands
+
+These commands require admin permissions.
+
+### autosave
+
+<ParamField path="autosave" type="command">
+  Toggles automatic world saving on or off.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  autosave <on/off>
+  ```
+  
+  **Parameters:**
+  - `on/off` (required) - Whether autosave should be enabled or disabled
+  
+  **Example:**
+  ```bash
+  autosave on
+  autosave off
+  ```
+</ParamField>
+
+### aurora
+
+<ParamField path="aurora" type="command">
+  Manages the Aurora's explosion state.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  aurora <countdown/restore/explode>
+  ```
+  
+  **Parameters:**
+  - `countdown` - Starts the Aurora explosion countdown
+  - `restore` - Restores the Aurora to its pre-explosion state
+  - `explode` - Immediately explodes the Aurora
+  
+  **Example:**
+  ```bash
+  aurora countdown
+  aurora explode
+  aurora restore
+  ```
+  
+  <Note>This command cannot be used from the console as it requires client-side effects.</Note>
+</ParamField>
+
+### backup
+
+<ParamField path="backup" type="command">
+  Creates a manual backup of the current save.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  backup
+  ```
+</ParamField>
+
+### changeadminpassword
+
+<ParamField path="changeadminpassword" type="command">
+  Changes the server's admin password.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  changeadminpassword <password>
+  ```
+  
+  **Parameters:**
+  - `password` (required) - The new admin password
+  
+  **Example:**
+  ```bash
+  changeadminpassword MyNewSecurePassword123
+  ```
+  
+  <Warning>Keep this password secure! Anyone with the admin password has full server control.</Warning>
+</ParamField>
+
+### changeserverpassword
+
+<ParamField path="changeserverpassword" type="command">
+  Changes or clears the server password required to join.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  changeserverpassword [password]
+  ```
+  
+  **Parameters:**
+  - `password` (optional) - The new server password. Omit to clear the password
+  
+  **Example:**
+  ```bash
+  # Set a password
+  changeserverpassword MyServerPass
+  
+  # Clear the password
+  changeserverpassword
+  ```
+</ParamField>
+
+### changeservergamemode
+
+<ParamField path="changeservergamemode" type="command">
+  Changes the server's game mode for all players.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  changeservergamemode <gamemode>
+  ```
+  
+  **Parameters:**
+  - `gamemode` (required) - Game mode to change to
+  
+  **Available Modes:**
+  - `SURVIVAL` - Standard survival mode
+  - `FREEDOM` - No hunger/thirst requirements
+  - `HARDCORE` - Permadeath mode
+  - `CREATIVE` - Creative mode with all resources
+  
+  **Example:**
+  ```bash
+  changeservergamemode CREATIVE
+  changeservergamemode SURVIVAL
+  ```
+</ParamField>
+
+### deop
+
+<ParamField path="deop" type="command">
+  Removes admin permissions from a player.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  deop <player>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - Username to remove admin rights from
+  
+  **Example:**
+  ```bash
+  deop Player1
+  ```
+</ParamField>
+
+### gamemode
+
+<ParamField path="gamemode" type="command">
+  Changes a specific player's game mode.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  gamemode <mode> [player]
+  ```
+  
+  **Parameters:**
+  - `mode` (required) - Game mode (SURVIVAL, FREEDOM, HARDCORE, CREATIVE)
+  - `player` (optional) - Player to change mode for (defaults to self)
+  
+  **Example:**
+  ```bash
+  gamemode CREATIVE
+  gamemode SURVIVAL Player1
+  ```
+</ParamField>
+
+### keepinventory
+
+<ParamField path="keepinventory" type="command">
+  Sets whether players keep their inventory when they die.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  keepinventory <true/false>
+  ```
+  
+  **Parameters:**
+  - `state` (required) - true to keep inventory on death, false otherwise
+  
+  **Example:**
+  ```bash
+  keepinventory true
+  keepinventory false
+  ```
+</ParamField>
+
+### op
+
+<ParamField path="op" type="command">
+  Grants admin permissions to a player.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  op <player>
+  ```
+  
+  **Parameters:**
+  - `player` (required) - The player's name to make an admin
+  
+  **Example:**
+  ```bash
+  op Player1
+  ```
+</ParamField>
+
+### pvp
+
+<ParamField path="pvp" type="command">
+  Enables or disables player versus player combat.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  pvp <on/off>
+  ```
+  
+  **Parameters:**
+  - `state` (required) - "on" to enable PvP, "off" to disable
+  
+  **Example:**
+  ```bash
+  pvp on
+  pvp off
+  ```
+</ParamField>
+
+### stop
+
+<ParamField path="stop" type="command">
+  Stops the server and saves the world.
+  
+  **Aliases:** `exit`, `halt`, `quit`, `close`
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  stop
+  ```
+  
+  <Note>The server will save the world before shutting down.</Note>
+</ParamField>
+
+### sunbeam
+
+<ParamField path="sunbeam" type="command">
+  Triggers Sunbeam story events.
+  
+  **Permission:** ADMIN
+  
+  **Usage:**
+  ```bash
+  sunbeam <storystart/countdown/gunaim>
+  ```
+  
+  **Parameters:**
+  - `storystart` - Starts the Sunbeam story event
+  - `countdown` - Starts the Sunbeam countdown
+  - `gunaim` - Triggers the gun aiming at Sunbeam
+  
+  **Example:**
+  ```bash
+  sunbeam countdown
+  sunbeam gunaim
+  ```
+  
+  <Note>This command cannot be used from the console.</Note>
+</ParamField>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="gear" href="/reference/server-config">
+    Configure server settings in server.cfg
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/quickstart">
+    Learn how to set up your first server
+  </Card>
+</CardGroup>

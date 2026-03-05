@@ -1,0 +1,306 @@
+---
+title: Client Commands
+description: In-game chat commands for Nitrox multiplayer
+icon: comments
+---
+
+Client commands are executed in-game through the chat interface by prefixing them with a forward slash (`/`).
+
+## Using Chat Commands
+
+To use a command in-game:
+
+1. Press the chat key (default: `Enter` or `T`)
+2. Type `/` followed by the command name
+3. Press `Enter` to execute
+
+<Note>
+All client commands are sent to the server for processing. Your permission level determines which commands you can use.
+</Note>
+
+## Command Format
+
+Commands follow this general format:
+
+```bash
+/commandname <required_parameter> [optional_parameter]
+```
+
+- `<parameter>` - Required parameter
+- `[parameter]` - Optional parameter
+
+## How Commands Work
+
+When you send a chat message starting with `/`, the Nitrox client:
+
+1. **Intercepts the message** - The message is not sent as regular chat
+2. **Sends ServerCommand packet** - The command is packaged and sent to the server
+3. **Server processes** - The server validates permissions and executes the command
+4. **Response received** - The server sends back a response message
+
+<CodeGroup>
+```typescript Message Flow
+Client Chat Input: "/help"
+  ↓
+PlayerChatManager detects '/' prefix
+  ↓
+Sends ServerCommand packet to server
+  ↓
+ConsoleCommandProcessor on server
+  ↓
+Executes command with player permissions
+  ↓
+Server sends ChatMessage response
+  ↓
+Client displays response in chat
+```
+</CodeGroup>
+
+## Available Commands
+
+All server commands can be executed from the in-game chat by prefixing them with `/`. The available commands depend on your permission level.
+
+### Examples
+
+<Accordion title="Player Commands">
+  Commands available to all players:
+  
+  ```bash
+  /help
+  /help kick
+  /list
+  /whisper Player1 Hey there!
+  /w Player1 Quick message
+  /whois Player1
+  ```
+</Accordion>
+
+<Accordion title="Moderator Commands">
+  Commands requiring moderator permissions:
+  
+  ```bash
+  /broadcast Server restart in 5 minutes
+  /say Welcome everyone!
+  /kick Player1 Breaking rules
+  /mute Player1
+  /unmute Player1
+  /save
+  /teleport 100 -50 200
+  /tp 0 0 0
+  /time day
+  /time night
+  /warp Player1
+  ```
+</Accordion>
+
+<Accordion title="Admin Commands">
+  Commands requiring admin permissions:
+  
+  ```bash
+  /login MyAdminPassword
+  /op Player1
+  /deop Player1
+  /gamemode CREATIVE
+  /gamemode SURVIVAL Player1
+  /pvp on
+  /pvp off
+  /autosave on
+  /changeserverpassword NewPassword
+  /changeadminpassword NewAdminPass
+  /aurora explode
+  /sunbeam countdown
+  /keepinventory true
+  /stop
+  ```
+</Accordion>
+
+## Permission-Based Access
+
+Commands are restricted based on your permission level:
+
+<Steps>
+  <Step title="PLAYER (Default)">
+    Basic commands for communication and information.
+    
+    - `/help`, `/list`, `/whois`, `/whisper`
+  </Step>
+  
+  <Step title="MODERATOR">
+    Player management and world modification.
+    
+    - All PLAYER commands
+    - `/kick`, `/mute`, `/unmute`, `/teleport`, `/warp`, `/time`, `/save`
+  </Step>
+  
+  <Step title="ADMIN">
+    Full server control and configuration.
+    
+    - All MODERATOR commands  
+    - `/op`, `/deop`, `/gamemode`, `/pvp`, `/stop`, `/aurora`, `/keepinventory`
+  </Step>
+</Steps>
+
+## Context Menu Commands
+
+Some commands can be executed through the in-game UI without typing them:
+
+### Player Menu (PDA)
+
+When you open the PDA and view other players, certain actions automatically send commands:
+
+<AccordionGroup>
+  <Accordion title="Mute/Unmute Player">
+    Clicking the mute button sends:
+    ```bash
+    /mute PlayerName
+    # or
+    /unmute PlayerName
+    ```
+  </Accordion>
+  
+  <Accordion title="Kick Player" icon="user-xmark">
+    Clicking the kick button sends:
+    ```bash
+    /kick PlayerName
+    ```
+    
+    <Note>Only available to moderators and admins.</Note>
+  </Accordion>
+  
+  <Accordion title="Teleport to Player" icon="location-arrow">
+    Clicking teleport sends:
+    ```bash
+    /warp PlayerName
+    ```
+  </Accordion>
+  
+  <Accordion title="Teleport Player to You" icon="hand">
+    Clicking "teleport to me" sends:
+    ```bash
+    /warp PlayerName YourName
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Command Tips
+
+<CardGroup cols={2}>
+  <Card title="Use Aliases" icon="keyboard">
+    Many commands have shorter aliases:
+    - `/w` instead of `/whisper`
+    - `/tp` instead of `/teleport`
+    - `/say` instead of `/broadcast`
+  </Card>
+  
+  <Card title="Command History" icon="clock-rotate-left">
+    Use up/down arrow keys in chat to cycle through your command history.
+  </Card>
+  
+  <Card title="Auto-complete Names" icon="wand-magic-sparkles">
+    Player names are validated server-side, so spelling must be exact.
+  </Card>
+  
+  <Card title="Check Permissions" icon="shield-check">
+    Use `/help` to see which commands you have access to.
+  </Card>
+</CardGroup>
+
+## Error Messages
+
+<AccordionGroup>
+  <Accordion title="Command not found">
+    The command doesn't exist or is misspelled.
+    
+    ```
+    Command not found: hlep
+    ```
+    
+    **Solution:** Check spelling or use `/help` to see available commands.
+  </Accordion>
+  
+  <Accordion title="No required permissions">
+    You don't have the required permission level.
+    
+    ```
+    You do not have the required permissions for this command!
+    ```
+    
+    **Solution:** Ask an admin for elevated permissions or use `/login` with the admin password.
+  </Accordion>
+  
+  <Accordion title="Invalid parameters">
+    Wrong number or type of parameters provided.
+    
+    ```
+    Error: Invalid Parameters
+    Usage: kick <name> [reason]
+    ```
+    
+    **Solution:** Check the command syntax with `/help commandname`.
+  </Accordion>
+  
+  <Accordion title="Player not found">
+    The specified player name doesn't match any connected player.
+    
+    ```
+    Player 'InvalidName' not found
+    ```
+    
+    **Solution:** Use `/list` to see connected players and verify the exact name.
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Command Processing Flow
+
+The client-side command system is implemented in:
+
+- **PlayerChatManager.cs:131-137** - Detects `/` prefix and invokes command delegate
+- **Multiplayer.cs** - Registers `OnPlayerCommand` handler
+- **ServerCommand packet** - Transmits command string to server
+- **ConsoleCommandProcessor.cs** - Server-side command execution
+
+<CodeGroup>
+```csharp Client (PlayerChatManager.cs)
+if (trimmedInput[0] == SERVER_COMMAND_PREFIX)
+{
+    // Server command
+    playerChat.InputText = "";
+    playerChat.Select();
+    OnPlayerCommand?.Invoke(trimmedInput.Substring(1));
+    return;
+}
+```
+
+```csharp Client (Multiplayer.cs)
+private void OnPlayerCommand(string command)
+{
+    multiplayerSession.Send(new ServerCommand(command));
+}
+```
+</CodeGroup>
+
+### Console-Only Restrictions
+
+Some commands have the `NO_CONSOLE` flag and can only be executed by players:
+
+- `/teleport` - Requires a player entity to teleport
+- `/aurora` - Requires client-side effects
+- `/sunbeam` - Requires client-side story events
+- `/login` - Players authenticate themselves
+
+<Warning>
+These commands will fail if executed from the server console.
+</Warning>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Server Commands" icon="terminal" href="/reference/server-commands">
+    Complete command reference with all parameters
+  </Card>
+  <Card title="Server Configuration" icon="gear" href="/reference/server-config">
+    Configure server permissions and behavior
+  </Card>
+</CardGroup>
